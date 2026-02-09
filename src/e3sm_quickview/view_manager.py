@@ -181,6 +181,46 @@ class VariableView(TrameComponent):
         if self.config.color_value_min_valid and self.config.color_value_max_valid:
             self.config.color_range = [min_value, max_value]
 
+    def _parse_comparison(self):
+        for comp_type in ("ctrl", "test", "diff", "comp1", "comp2"):
+            suffix = f"_{comp_type}"
+            if self.variable_name.endswith(suffix):
+                return self.variable_name[: -len(suffix)], comp_type
+        return self.variable_name, None
+
+    def _ctrl_test_visible(self):
+        selected_columns = getattr(self.state, "selected_columns", None)
+        if not selected_columns:
+            return False
+        return "ctrl" in selected_columns and "test" in selected_columns
+
+    def _get_ctrl_test_combined_range(self):
+        base_name, comp_type = self._parse_comparison()
+        if comp_type not in ("ctrl", "test"):
+            return None
+        if not self._ctrl_test_visible():
+            return None
+
+        data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
+        ctrl_array = data_info.GetArray(f"{base_name}_ctrl")
+        test_array = data_info.GetArray(f"{base_name}_test")
+        if not ctrl_array or not test_array:
+            return None
+
+        ctrl_range = ctrl_array.GetRange()
+        test_range = test_array.GetRange()
+        if (
+            ctrl_range is None
+            or test_range is None
+            or math.isnan(ctrl_range[0])
+            or math.isnan(ctrl_range[1])
+            or math.isnan(test_range[0])
+            or math.isnan(test_range[1])
+        ):
+            return None
+
+        return [min(ctrl_range[0], test_range[0]), max(ctrl_range[1], test_range[1])]
+
     def update_color_range(self, *_):
         if self.config.override_range:
             skip_update = False
@@ -197,14 +237,18 @@ class VariableView(TrameComponent):
 
             self.lut.RescaleTransferFunction(*self.config.color_range)
         else:
-            self.representation.RescaleTransferFunctionToDataRange(False, True)
-            data_array = (
-                self.source.views["atmosphere_data"]
-                .GetCellDataInformation()
-                .GetArray(self.variable_name)
-            )
-            if data_array:
-                data_range = data_array.GetRange()
+            data_range = self._get_ctrl_test_combined_range()
+            if data_range is None:
+                self.representation.RescaleTransferFunctionToDataRange(False, True)
+                data_array = (
+                    self.source.views["atmosphere_data"]
+                    .GetCellDataInformation()
+                    .GetArray(self.variable_name)
+                )
+                if data_array:
+                    data_range = data_array.GetRange()
+
+            if data_range is not None:
                 self.config.color_range = data_range
                 self.config.color_value_min = str(data_range[0])
                 self.config.color_value_max = str(data_range[1])

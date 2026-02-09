@@ -497,6 +497,13 @@ class EAMApp(TrameApp):
         if any(vars_to_show.values()):
             self.view_manager.build_auto_layout(vars_to_show)
 
+    @change("selected_columns")
+    def _on_selected_columns_change(self, **_):
+        if not self.state.variables_loaded:
+            return
+        self.view_manager.update_color_range()
+        self.view_manager.render()
+
     @change("projection")
     async def _on_projection(self, projection, **_):
         proj_str = projection[0]
