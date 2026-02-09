@@ -76,6 +76,13 @@ class VariableView(TrameComponent):
         self.variable_name = variable_name
         self.variable_type = variable_type
         self.name = f"view_{self.variable_name}"
+        if self.variable_name.endswith(("_ctrl", "_test")):
+            self.config.preset = "navia"
+        elif self.variable_name.endswith("_diff"):
+            self.config.preset = "Cool to Warm (Extended)"
+        elif self.variable_name.endswith(("_comp1", "_comp2")):
+            self.config.preset = "bam"
+            self.config.invert = True
         self.view = simple.CreateRenderView()
         self.view.GetRenderWindow().SetOffScreenRendering(True)
         self.view.InteractionMode = "2D"
@@ -188,6 +195,12 @@ class VariableView(TrameComponent):
                 return self.variable_name[: -len(suffix)], comp_type
         return self.variable_name, None
 
+    @staticmethod
+    def _is_finite_range(data_range):
+        if data_range is None or len(data_range) < 2:
+            return False
+        return math.isfinite(data_range[0]) and math.isfinite(data_range[1])
+
     def _ctrl_test_visible(self):
         selected_columns = getattr(self.state, "selected_columns", None)
         if not selected_columns:
@@ -209,17 +222,72 @@ class VariableView(TrameComponent):
 
         ctrl_range = ctrl_array.GetRange()
         test_range = test_array.GetRange()
-        if (
-            ctrl_range is None
-            or test_range is None
-            or math.isnan(ctrl_range[0])
-            or math.isnan(ctrl_range[1])
-            or math.isnan(test_range[0])
-            or math.isnan(test_range[1])
-        ):
+        if not (self._is_finite_range(ctrl_range) and self._is_finite_range(test_range)):
             return None
 
         return [min(ctrl_range[0], test_range[0]), max(ctrl_range[1], test_range[1])]
+
+    def _get_diff_centered_range(self):
+        _, comp_type = self._parse_comparison()
+        if comp_type != "diff":
+            return None
+
+        data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
+        diff_array = data_info.GetArray(self.variable_name)
+        if not diff_array:
+            return None
+
+        diff_range = diff_array.GetRange()
+        if not self._is_finite_range(diff_range):
+            return None
+
+        max_abs = max(abs(diff_range[0]), abs(diff_range[1]))
+        return [-max_abs, max_abs]
+
+    def _comp_visible(self):
+        selected_columns = getattr(self.state, "selected_columns", None)
+        if not selected_columns:
+            return False
+        return "comp1" in selected_columns and "comp2" in selected_columns
+
+    def _get_comp_centered_range(self):
+        base_name, comp_type = self._parse_comparison()
+        if comp_type not in ("comp1", "comp2"):
+            return None
+
+        data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
+        if self._comp_visible():
+            comp1_array = data_info.GetArray(f"{base_name}_comp1")
+            comp2_array = data_info.GetArray(f"{base_name}_comp2")
+            if not comp1_array or not comp2_array:
+                return None
+
+            comp1_range = comp1_array.GetRange()
+            comp2_range = comp2_array.GetRange()
+            if not (
+                self._is_finite_range(comp1_range)
+                and self._is_finite_range(comp2_range)
+            ):
+                return None
+
+            max_abs = max(
+                abs(comp1_range[0]),
+                abs(comp1_range[1]),
+                abs(comp2_range[0]),
+                abs(comp2_range[1]),
+            )
+            return [-max_abs, max_abs]
+
+        comp_array = data_info.GetArray(self.variable_name)
+        if not comp_array:
+            return None
+
+        comp_range = comp_array.GetRange()
+        if not self._is_finite_range(comp_range):
+            return None
+
+        max_abs = max(abs(comp_range[0]), abs(comp_range[1]))
+        return [-max_abs, max_abs]
 
     def update_color_range(self, *_):
         if self.config.override_range:
@@ -237,7 +305,11 @@ class VariableView(TrameComponent):
 
             self.lut.RescaleTransferFunction(*self.config.color_range)
         else:
-            data_range = self._get_ctrl_test_combined_range()
+            data_range = self._get_diff_centered_range()
+            if data_range is None:
+                data_range = self._get_comp_centered_range()
+            if data_range is None:
+                data_range = self._get_ctrl_test_combined_range()
             if data_range is None:
                 self.representation.RescaleTransferFunctionToDataRange(False, True)
                 data_array = (
