@@ -370,7 +370,7 @@ class EAMApp(TrameApp):
                     *(
                         {
                             "name": var.name,
-                            "type": str(var.dimensions),
+                            "type": ", ".join(var.dimensions),
                             "id": f"{var.name}",
                         }
                         for _, var in self.source.varmeta.items()
@@ -381,7 +381,10 @@ class EAMApp(TrameApp):
                 from e3sm_quickview.utils.colors import get_type_color
 
                 dim_types = sorted(
-                    set(str(var.dimensions) for var in self.source.varmeta.values())
+                    set(
+                        ", ".join(var.dimensions)
+                        for var in self.source.varmeta.values()
+                    )
                 )
                 self.state.variable_types = [
                     {"name": t, "color": get_type_color(i)}
