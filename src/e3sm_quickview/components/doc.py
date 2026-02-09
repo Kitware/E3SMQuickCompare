@@ -35,9 +35,9 @@ class ToolFieldSelection(Tool):
     def __init__(self):
         super().__init__(
             icon="mdi-list-status",
-            title="Fields selection",
+            title="Variable selection",
             description="""
-                Select the variables to visualize. You need to load files prior any field selection.
+                Select the variables to visualize. You need to load files prior any variable selection.
             """,
         )
         with self, v3.Template(v_slot_append=True):

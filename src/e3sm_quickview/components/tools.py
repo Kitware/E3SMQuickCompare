@@ -148,7 +148,7 @@ class FieldSelection(ToggleButton):
     def __init__(self):
         super().__init__(
             compact="compact_drawer",
-            title="Fields selection",
+            title="Variable selection",
             icon="mdi-list-status",
             value="select-fields",
             disabled="variables_listing.length === 0",
