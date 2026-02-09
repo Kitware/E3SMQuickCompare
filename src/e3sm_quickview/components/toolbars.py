@@ -191,8 +191,14 @@ class Cropping(v3.VToolbar):
         super().__init__(**to_kwargs("adjust-databounds"))
 
         with self:
-            v3.VIcon("mdi-web", classes="pl-6 opacity-50")
-            with v3.VRow(classes="ma-0 px-2 align-center"):
+            v3.VIcon(
+                "mdi-web",
+                classes="pl-6 opacity-50",
+                click="crop_slider_edit = !crop_slider_edit",
+            )
+            with v3.VRow(
+                classes="ma-0 px-2 align-center", v_if=("crop_slider_edit", True)
+            ):
                 with v3.VCol(cols=6):
                     with v3.VRow(classes="mx-2 my-0"):
                         v3.VLabel(
@@ -231,6 +237,74 @@ class Cropping(v3.VToolbar):
                         density="compact",
                         hide_details=True,
                     )
+            with v3.VRow(classes="ma-0 pl-6 pr-2 align-center ga-4", v_else=True):
+                v3.VNumberInput(
+                    label="Longitude (min)",
+                    v_model=("crop_longitude_min", -180),
+                    min=[-180],
+                    max=("crop_longitude_max", 180),
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                )
+                v3.VNumberInput(
+                    label="Longitude (max)",
+                    v_model=("crop_longitude_max", 180),
+                    min=("crop_longitude_min", -180),
+                    max=[180],
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                    inset=True,
+                )
+                v3.VNumberInput(
+                    label="Latitude (min)",
+                    v_model=("crop_latitude_min", -90),
+                    min=[-90],
+                    max=("crop_latitude_max", 90),
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                    inset=True,
+                )
+                v3.VNumberInput(
+                    label="Latitude (max)",
+                    v_model=("crop_latitude_max", 90),
+                    min=("crop_latitude_min", -90),
+                    max=[90],
+                    step=[1],
+                    hide_details=True,
+                    density="comfortable",
+                    variant="plain",
+                    flat=True,
+                    control_variant="stacked",
+                    inset=True,
+                )
+
+    @change("crop_longitude_min", "crop_longitude_max")
+    def _on_crop_lon(self, crop_longitude_min, crop_longitude_max, **_):
+        if crop_longitude_min is None or crop_longitude_max is None:
+            return
+        data_range = [float(crop_longitude_min), float(crop_longitude_max)]
+        if data_range[0] < data_range[1]:
+            self.state.crop_longitude = data_range
+
+    @change("crop_latitude_min", "crop_latitude_max")
+    def _on_crop_lat(self, crop_latitude_min, crop_latitude_max, **_):
+        if crop_latitude_min is None or crop_latitude_max is None:
+            return
+        data_range = [float(crop_latitude_min), float(crop_latitude_max)]
+        if data_range[0] < data_range[1]:
+            self.state.crop_latitude = data_range
 
 
 class DataSelection(html.Div):
