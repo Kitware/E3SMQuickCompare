@@ -99,7 +99,7 @@ class ToolCropping(Tool):
             description="Toggle cropping toolbar for adjusting spacial bounds.",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="c", variant="contained", inline=True)
+            v3.VHotkey(keys="l", variant="contained", inline=True)
 
 
 class ToolDataSelection(Tool):
@@ -257,7 +257,7 @@ class LandingPage(v3.VContainer):
                     with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Toggle Lat/Long cropping toolbar")
                         v3.VSpacer()
-                        v3.VHotkey(keys="c", variant="contained", inline=True)
+                        v3.VHotkey(keys="l", variant="contained", inline=True)
                     with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Toggle Slice selection toolbar")
                         v3.VSpacer()

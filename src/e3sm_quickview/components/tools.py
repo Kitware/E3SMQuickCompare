@@ -163,7 +163,7 @@ class Cropping(ToggleButton):
             title="Lat/Long cropping",
             icon="mdi-web",
             value="adjust-databounds",
-            keybinding="c",
+            keybinding="l",
         )
 
 

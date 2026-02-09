@@ -152,7 +152,7 @@ class EAMApp(TrameApp):
                 mt.bind("h", "ToggleHelp")
 
                 mt.bind("p", "ToolbarLayout")
-                mt.bind("c", "ToolbarCrop")
+                mt.bind("l", "ToolbarCrop")
                 mt.bind("s", "ToolbarSelect")
                 mt.bind("a", "ToolbarAnimation")
                 mt.bind("g", "ToggleGroups")
