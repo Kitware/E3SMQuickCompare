@@ -117,8 +117,7 @@ class FieldSelection(v3.VNavigationDrawer):
                             hide_details=True,
                         )
 
-                # with v3.VCardActions(classes="px-2"):
-                with v3.VCardActions(classes="pb-0", style="min-height: 0;"):
+                with v3.VCardActions(classes="px-2", style="min-height: 0;"):
                     v3.VBtn(
                         classes="text-none",
                         color="primary",
@@ -132,7 +131,6 @@ class FieldSelection(v3.VNavigationDrawer):
                             "variables_selected.length === 0 || variables_loaded",
                         ),
                         click=load_variables,
-                        block=True,
                     )
                 with v3.VCardActions(
                     key="variables_selected.length",
