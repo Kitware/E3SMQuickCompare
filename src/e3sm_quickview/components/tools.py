@@ -1,7 +1,8 @@
 from pathlib import Path
-from trame.widgets import vuetify3 as v3
+
 from trame.app import asynchronous
 from trame.decorators import trigger
+from trame.widgets import vuetify3 as v3
 
 from e3sm_quickview import __version__ as quickview_version
 from e3sm_quickview.assets import ASSETS
@@ -75,10 +76,10 @@ class ResetCamera(ActionButton):
     def __init__(self, compact="compact_drawer", click=None):
         super().__init__(
             compact=compact,
-            title="Reset camera",
-            icon="mdi-crop-free",
+            title="Auto zoom",
+            icon="mdi-fit-to-page-outline",
             click=click,
-            keybinding="r",
+            keybinding="z",
         )
 
 
@@ -126,10 +127,10 @@ class LayoutManagement(ToggleButton):
     def __init__(self):
         super().__init__(
             compact="compact_drawer",
-            title="Layout management",
+            title="Viewport layout",
             icon="mdi-collage",
             value="adjust-layout",
-            keybinding="l",
+            keybinding="p",
         )
 
 
@@ -138,7 +139,7 @@ class OpenFile(ToggleButton):
         super().__init__(
             compact="compact_drawer",
             title="File loading",
-            icon="mdi-file-document-outline",
+            icon="mdi-file-upload-outline",
             value="load-data",
         )
 
@@ -147,7 +148,7 @@ class FieldSelection(ToggleButton):
     def __init__(self):
         super().__init__(
             compact="compact_drawer",
-            title="Fields selection",
+            title="Variable selection",
             icon="mdi-list-status",
             value="select-fields",
             disabled="variables_listing.length === 0",
@@ -160,9 +161,9 @@ class Cropping(ToggleButton):
         super().__init__(
             compact="compact_drawer",
             title="Lat/Long cropping",
-            icon="mdi-crop",
+            icon="mdi-web",
             value="adjust-databounds",
-            keybinding="c",
+            keybinding="l",
         )
 
 
@@ -182,7 +183,7 @@ class Animation(ToggleButton):
         super().__init__(
             compact="compact_drawer",
             title="Animation controls",
-            icon="mdi-movie-open-cog-outline",
+            icon="mdi-video",
             value="animation-controls",
             keybinding="a",
         )
@@ -239,12 +240,12 @@ class MapProjection(v3.VTooltip):
             {
                 "title": "Cylindrical Equidistant",
                 "value": "Cyl. Equidistant",
-                "key": "e",
+                "key": "c",
             },
             {
                 "title": "Robinson",
                 "value": "Robinson",
-                "key": "b",
+                "key": "r",
             },
             {
                 "title": "Mollweide",

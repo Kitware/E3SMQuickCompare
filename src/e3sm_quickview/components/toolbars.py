@@ -2,8 +2,8 @@ import asyncio
 
 from trame.app import asynchronous
 from trame.decorators import change
-from trame.widgets import html, vuetify3 as v3, client
-
+from trame.widgets import client, html
+from trame.widgets import vuetify3 as v3
 
 from e3sm_quickview.utils import js
 
@@ -47,7 +47,7 @@ class Layout(html.Div):
             # First row - existing layout controls
             with v3.VToolbar(density="compact", color="white", classes="border-b-thin"):
                 v3.VIcon("mdi-collage", classes="px-6 opacity-50")
-                v3.VLabel("Layout Controls", classes="text-subtitle-2")
+                v3.VLabel("Viewport layout", classes="text-subtitle-2")
                 v3.VSpacer()
 
                 v3.VSlider(
@@ -219,7 +219,7 @@ class Cropping(v3.VToolbar):
         super().__init__(**to_kwargs("adjust-databounds"))
 
         with self:
-            v3.VIcon("mdi-crop", classes="pl-6 opacity-50")
+            v3.VIcon("mdi-web", classes="pl-6 opacity-50")
             with v3.VRow(classes="ma-0 px-2 align-center"):
                 with v3.VCol(cols=6):
                     with v3.VRow(classes="mx-2 my-0"):
@@ -323,7 +323,7 @@ class Animation(v3.VToolbar):
 
         with self:
             v3.VIcon(
-                "mdi-movie-open-cog-outline",
+                "mdi-video",
                 classes="px-6 opacity-50",
             )
             with v3.VRow(classes="ma-0 px-2 align-center"):

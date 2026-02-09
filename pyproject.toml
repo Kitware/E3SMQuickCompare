@@ -40,6 +40,9 @@ tauri = [
 vue2 = [
     "trame-grid-layout>=1.0.3",
 ]
+jupyter = [
+    "jupyter-server-proxy>=4.0.0",
+]
 
 
 [build-system]
@@ -53,6 +56,7 @@ include = [
   "/src/e3sm_quickview/data/**",
   "/src/e3sm_quickview/assets/**",
   "/src/e3sm_quickview/module/**",
+  "/src/e3sm_quickview/jupyter/**",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -63,6 +67,9 @@ packages = [
 [project.scripts]
 quickview-vue2 = "e3sm_quickview.app:main"
 quickview = "e3sm_quickview.app:main"
+
+[project.entry-points."jupyter_serverproxy_servers"]
+quickview = "e3sm_quickview.jupyter:setup_quickview"
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore star import issues in ParaView plugins

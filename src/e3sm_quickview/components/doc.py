@@ -1,6 +1,7 @@
-from trame.widgets import vuetify3 as v3, html
-from e3sm_quickview.assets import ASSETS
+from trame.widgets import html
+from trame.widgets import vuetify3 as v3
 
+from e3sm_quickview.assets import ASSETS
 
 # -----------------------------------------------------------------------------
 # Tools
@@ -22,7 +23,7 @@ class Tool(v3.VListItem):
 class ToolFileLoading(Tool):
     def __init__(self):
         super().__init__(
-            icon="mdi-file-document-outline",
+            icon="mdi-file-upload-outline",
             title="File loading",
             description="Load files to explore. Those could be simulation and connectivity files or even a state file pointing to those files.",
         )
@@ -34,9 +35,9 @@ class ToolFieldSelection(Tool):
     def __init__(self):
         super().__init__(
             icon="mdi-list-status",
-            title="Fields selection",
+            title="Variable selection",
             description="""
-                Select the variables to visualize. You need to load files prior any field selection.
+                Select the variables to visualize. You need to load files prior any variable selection.
             """,
         )
         with self, v3.Template(v_slot_append=True):
@@ -46,12 +47,12 @@ class ToolFieldSelection(Tool):
 class ToolResetCamera(Tool):
     def __init__(self):
         super().__init__(
-            icon="mdi-crop-free",
-            title="Reset camera",
+            icon="mdi-fit-to-page-outline",
+            title="Auto zoom",
             description="Recenter the visualizations to the full data.",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="r", variant="contained", inline=True)
+            v3.VHotkey(keys="z", variant="contained", inline=True)
 
 
 class ToolStateImportExport(Tool):
@@ -74,8 +75,8 @@ class ToolMapProjection(Tool):
             description="Select projection to use for the visualizations. (Cylindrical Equidistant, Robinson, Mollweide)",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="e", variant="contained", inline=True)
-            v3.VHotkey(keys="b", variant="contained", inline=True)
+            v3.VHotkey(keys="c", variant="contained", inline=True)
+            v3.VHotkey(keys="r", variant="contained", inline=True)
             v3.VHotkey(keys="m", variant="contained", inline=True)
 
 
@@ -83,22 +84,22 @@ class ToolLayoutManagement(Tool):
     def __init__(self):
         super().__init__(
             icon="mdi-collage",
-            title="Layout management",
-            description="Toggle layout toolbar for adjusting aspect-ratio, width and grouping options.",
+            title="Viewport layout",
+            description="Toggle viewport layout toolbar for adjusting aspect-ratio, width and grouping options.",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="l", variant="contained", inline=True)
+            v3.VHotkey(keys="p", variant="contained", inline=True)
 
 
 class ToolCropping(Tool):
     def __init__(self):
         super().__init__(
-            icon="mdi-crop",
+            icon="mdi-web",
             title="Lat/Long cropping",
             description="Toggle cropping toolbar for adjusting spacial bounds.",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="c", variant="contained", inline=True)
+            v3.VHotkey(keys="l", variant="contained", inline=True)
 
 
 class ToolDataSelection(Tool):
@@ -115,7 +116,7 @@ class ToolDataSelection(Tool):
 class ToolAnimation(Tool):
     def __init__(self):
         super().__init__(
-            icon="mdi-movie-open-cog-outline",
+            icon="mdi-video",
             title="Animation controls",
             description="Toggle animation toolbar.",
         )
@@ -184,7 +185,7 @@ class LandingPage(v3.VContainer):
                 {Bold("EAM QuickView")} is an open-source, interactive visualization
                 tool designed for scientists working with the atmospheric component
                 of the {Link("Energy Exascale Earth System Model (E3SM)", "https://e3sm.org/")},
-                known as the E3SM Atmosphere Model (EAM). 
+                known as the E3SM Atmosphere Model (EAM).
                 Its Python- and {Link("Trame", "https://www.kitware.com/trame/")}-based
                 Graphical User Interface (GUI) provides intuitive access to {Link("ParaView's", "https://www.paraview.org/")} powerful analysis
                 and visualization capabilities, without the steep learning curve.
@@ -221,9 +222,9 @@ class LandingPage(v3.VContainer):
                         v3.VHotkey(keys="h", variant="contained", inline=True)
 
                     with v3.VRow(classes="ma-0 pb-4"):
-                        v3.VLabel("Reset Camera")
+                        v3.VLabel("Auto zoom")
                         v3.VSpacer()
-                        v3.VHotkey(keys="r", variant="contained", inline=True)
+                        v3.VHotkey(keys="z", variant="contained", inline=True)
 
                     with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Toggle view interaction lock")
@@ -250,13 +251,13 @@ class LandingPage(v3.VContainer):
                     v3.VDivider(classes="mb-4")
 
                     with v3.VRow(classes="ma-0 pb-4"):
-                        v3.VLabel("Toggle Layout management toolbar")
+                        v3.VLabel("Toggle viewport layout toolbar")
                         v3.VSpacer(classes="mt-2")
-                        v3.VHotkey(keys="l", variant="contained", inline=True)
+                        v3.VHotkey(keys="p", variant="contained", inline=True)
                     with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Toggle Lat/Long cropping toolbar")
                         v3.VSpacer()
-                        v3.VHotkey(keys="c", variant="contained", inline=True)
+                        v3.VHotkey(keys="l", variant="contained", inline=True)
                     with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Toggle Slice selection toolbar")
                         v3.VSpacer()
@@ -292,10 +293,10 @@ class LandingPage(v3.VContainer):
                     with v3.VList(density="compact", classes="pa-0 ma-0"):
                         with v3.VListItem(subtitle="Cylindrical Equidistant"):
                             with v3.Template(v_slot_append="True"):
-                                v3.VHotkey(keys="e", variant="contained", inline=True)
+                                v3.VHotkey(keys="c", variant="contained", inline=True)
                         with v3.VListItem(subtitle="Robinson"):
                             with v3.Template(v_slot_append="True"):
-                                v3.VHotkey(keys="b", variant="contained", inline=True)
+                                v3.VHotkey(keys="r", variant="contained", inline=True)
                         with v3.VListItem(subtitle="Mollweide"):
                             with v3.Template(v_slot_append="True"):
                                 v3.VHotkey(keys="m", variant="contained", inline=True)
@@ -334,7 +335,7 @@ class LandingPage(v3.VContainer):
                 """
                 QuickView has been developed using EAM's history output on
                 the physics grids (pg2 grids) written by EAMv2, v3, and an
-                intermediate version towards v4 (EAMxx). 
+                intermediate version towards v4 (EAMxx).
                 Those sample output files can be found on Zenodo.
                 """
             )

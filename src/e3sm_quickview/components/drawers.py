@@ -1,9 +1,10 @@
 from trame.decorators import change
-from trame.widgets import html, vuetify3 as v3
+from trame.widgets import html
+from trame.widgets import vuetify3 as v3
 
 from e3sm_quickview import __version__ as quickview_version
 from e3sm_quickview.components import css, tools
-from e3sm_quickview.utils import js, constants
+from e3sm_quickview.utils import constants, js
 
 
 class Tools(v3.VNavigationDrawer):
@@ -24,24 +25,28 @@ class Tools(v3.VNavigationDrawer):
                     v_model_selected=("active_tools", ["load-data"]),
                 ):
                     tools.AppLogo()
-                    tools.OpenFile()
-                    tools.FieldSelection()
-                    tools.MapProjection()
                     tools.ResetCamera(click=reset_camera)
 
                     v3.VDivider(classes="my-1")  # ---------------------
 
-                    tools.LayoutManagement()
-                    tools.Cropping()
+                    tools.StateImportExport()
+                    tools.OpenFile()
+
+                    v3.VDivider(classes="my-1")  # ---------------------
+
+                    tools.FieldSelection()
                     tools.DataSelection()
                     tools.Animation()
 
                     v3.VDivider(classes="my-1")  # ---------------------
 
-                    tools.StateImportExport()
+                    tools.LayoutManagement()
+                    tools.MapProjection()
+                    tools.Cropping()
 
                     # dev add-on ui reload
                     if self.server.hot_reload:
+                        v3.VDivider(classes="my-1")  # ---------------------
                         tools.ActionButton(
                             compact="compact_drawer",
                             title="Refresh UI",
@@ -112,7 +117,8 @@ class FieldSelection(v3.VNavigationDrawer):
                             hide_details=True,
                         )
 
-                with v3.VCardActions(classes="px-2"):
+                # with v3.VCardActions(classes="px-2"):
+                with v3.VCardActions(classes="pb-0", style="min-height: 0;"):
                     v3.VBtn(
                         classes="text-none",
                         color="primary",
@@ -126,6 +132,27 @@ class FieldSelection(v3.VNavigationDrawer):
                             "variables_selected.length === 0 || variables_loaded",
                         ),
                         click=load_variables,
+                        block=True,
+                    )
+                with v3.VCardActions(
+                    key="variables_selected.length",
+                    classes="flex-wrap py-1",
+                    style="overflow-y: auto; max-height: 100px; min-height: 42px;",
+                ):
+                    v3.VChip(
+                        "{{ variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length }} {{ vtype.name }}",
+                        v_for="(vtype, idx) in variable_types",
+                        key="idx",
+                        color=("vtype.color",),
+                        v_show=(
+                            "variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length",
+                        ),
+                        size="small",
+                        closable=True,
+                        click_close=(
+                            "variables_selected = variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type !== vtype.name)"
+                        ),
+                        classes="ma-1",
                     )
 
                 v3.VTextField(

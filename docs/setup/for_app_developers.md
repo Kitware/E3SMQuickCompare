@@ -33,12 +33,12 @@ pip install -e .
 
 To launch the EAM QuickView GUI in its dedicated window, use
 ```
-python -m quickview.app --data /path/to/your/data.nc --conn /path/to/connectivity.nc
+quickview -data /path/to/your/data.nc --con /path/to/connectivity.nc
 ```
 
 To launch server only (no browser popup), use
 ```
-python -m quickview.app --data /path/to/your/data.nc --conn /path/to/connectivity.nc --server
+quickview -df /path/to/your/data.nc -cf /path/to/connectivity.nc --server
 ```
 
 ----
