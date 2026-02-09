@@ -151,7 +151,7 @@ class EAMApp(TrameApp):
                 mt.bind("u", "UploadState")
                 mt.bind("h", "ToggleHelp")
 
-                mt.bind("l", "ToolbarLayout")
+                mt.bind("p", "ToolbarLayout")
                 mt.bind("c", "ToolbarCrop")
                 mt.bind("s", "ToolbarSelect")
                 mt.bind("a", "ToolbarAnimation")

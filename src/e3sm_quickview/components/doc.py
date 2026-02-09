@@ -84,11 +84,11 @@ class ToolLayoutManagement(Tool):
     def __init__(self):
         super().__init__(
             icon="mdi-collage",
-            title="Layout management",
-            description="Toggle layout toolbar for adjusting aspect-ratio, width and grouping options.",
+            title="Viewport layout",
+            description="Toggle viewport layout toolbar for adjusting aspect-ratio, width and grouping options.",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="l", variant="contained", inline=True)
+            v3.VHotkey(keys="p", variant="contained", inline=True)
 
 
 class ToolCropping(Tool):
@@ -251,9 +251,9 @@ class LandingPage(v3.VContainer):
                     v3.VDivider(classes="mb-4")
 
                     with v3.VRow(classes="ma-0 pb-4"):
-                        v3.VLabel("Toggle Layout management toolbar")
+                        v3.VLabel("Toggle viewport layout toolbar")
                         v3.VSpacer(classes="mt-2")
-                        v3.VHotkey(keys="l", variant="contained", inline=True)
+                        v3.VHotkey(keys="p", variant="contained", inline=True)
                     with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Toggle Lat/Long cropping toolbar")
                         v3.VSpacer()

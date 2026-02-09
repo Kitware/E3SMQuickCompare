@@ -43,7 +43,7 @@ class Layout(v3.VToolbar):
 
         with self:
             v3.VIcon("mdi-collage", classes="px-6 opacity-50")
-            v3.VLabel("Layout Controls", classes="text-subtitle-2")
+            v3.VLabel("Viewport layout", classes="text-subtitle-2")
             v3.VSpacer()
 
             v3.VSlider(

@@ -127,10 +127,10 @@ class LayoutManagement(ToggleButton):
     def __init__(self):
         super().__init__(
             compact="compact_drawer",
-            title="Layout management",
+            title="Viewport layout",
             icon="mdi-collage",
             value="adjust-layout",
-            keybinding="l",
+            keybinding="p",
         )
 
 
