@@ -109,7 +109,7 @@ def create_size_menu(name, config):
 def create_bottom_bar(config, update_color_preset):
     with config.provide_as("config"):
         with html.Div(
-            classes="bg-blue-grey-darken-2 d-flex align-center",
+            classes="bg-white text-black d-flex align-center border-t-thin",
             style="height:1rem;position:relative;top:0;user-select:none;cursor:context-menu;",
         ):
             with v3.VMenu(

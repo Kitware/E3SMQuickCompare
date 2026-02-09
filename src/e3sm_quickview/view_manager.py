@@ -88,7 +88,9 @@ class VariableView(TrameComponent):
         self.view.InteractionMode = "2D"
         self.view.OrientationAxesVisibility = 0
         self.view.UseColorPaletteForBackground = 0
-        self.view.BackgroundColorMode = "Gradient"
+        self.view.BackgroundColorMode = "Single Color"
+        self.view.Background = [1, 1, 1]
+        self.view.Background2 = [1, 1, 1]
         self.view.CameraParallelProjection = 1
         self.view.Size = 0  # make the interactive widget non responsive
         self.representation = simple.Show(
@@ -343,7 +345,7 @@ class VariableView(TrameComponent):
             ):
                 with v3.VRow(
                     dense=True,
-                    classes="ma-0 pa-0 bg-black opacity-90 d-flex align-center",
+                    classes="ma-0 pa-0 bg-white text-black d-flex align-center border-b-thin",
                     style="flex-wrap: nowrap;",
                 ):
                     tview.create_size_menu(self.name, self.config)
