@@ -75,8 +75,8 @@ class ToolMapProjection(Tool):
             description="Select projection to use for the visualizations. (Cylindrical Equidistant, Robinson, Mollweide)",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="e", variant="contained", inline=True)
-            v3.VHotkey(keys="b", variant="contained", inline=True)
+            v3.VHotkey(keys="c", variant="contained", inline=True)
+            v3.VHotkey(keys="r", variant="contained", inline=True)
             v3.VHotkey(keys="m", variant="contained", inline=True)
 
 
@@ -293,10 +293,10 @@ class LandingPage(v3.VContainer):
                     with v3.VList(density="compact", classes="pa-0 ma-0"):
                         with v3.VListItem(subtitle="Cylindrical Equidistant"):
                             with v3.Template(v_slot_append="True"):
-                                v3.VHotkey(keys="e", variant="contained", inline=True)
+                                v3.VHotkey(keys="c", variant="contained", inline=True)
                         with v3.VListItem(subtitle="Robinson"):
                             with v3.Template(v_slot_append="True"):
-                                v3.VHotkey(keys="b", variant="contained", inline=True)
+                                v3.VHotkey(keys="r", variant="contained", inline=True)
                         with v3.VListItem(subtitle="Mollweide"):
                             with v3.Template(v_slot_append="True"):
                                 v3.VHotkey(keys="m", variant="contained", inline=True)

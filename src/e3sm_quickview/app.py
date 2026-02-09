@@ -142,8 +142,8 @@ class EAMApp(TrameApp):
                 mt.bind(["alt+6", "6"], "Size6")
                 mt.bind(["="], "SizeFlow")
 
-                mt.bind("e", "ProjectionEquidistant")
-                mt.bind("b", "ProjectionRobinson")
+                mt.bind("c", "ProjectionEquidistant")
+                mt.bind("r", "ProjectionRobinson")
                 mt.bind("m", "ProjectionMollweide")
 
                 mt.bind("f", "FileOpen")

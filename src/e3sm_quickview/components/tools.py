@@ -240,12 +240,12 @@ class MapProjection(v3.VTooltip):
             {
                 "title": "Cylindrical Equidistant",
                 "value": "Cyl. Equidistant",
-                "key": "e",
+                "key": "c",
             },
             {
                 "title": "Robinson",
                 "value": "Robinson",
-                "key": "b",
+                "key": "r",
             },
             {
                 "title": "Mollweide",
