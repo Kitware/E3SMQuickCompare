@@ -73,28 +73,7 @@ class FieldSelection(v3.VNavigationDrawer):
 
         with self:
             with html.Div(style="position:fixed;top:0;width: 500px;"):
-                with v3.VCardActions(
-                    key="variables_selected.length",
-                    classes="flex-wrap",
-                    style="overflow-y: auto; max-height: 100px;",
-                ):
-                    v3.VChip(
-                        "{{ variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length }} {{ vtype.name }}",
-                        v_for="(vtype, idx) in variable_types",
-                        key="idx",
-                        color=("vtype.color",),
-                        v_show=(
-                            "variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length",
-                        ),
-                        size="small",
-                        closable=True,
-                        click_close=(
-                            "variables_selected = variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type !== vtype.name)",
-                        ),
-                        classes="ma-1",
-                    )
-
-                    v3.VSpacer()
+                with v3.VCardActions(classes="pb-0", style="min-height: 0;"):
                     v3.VBtn(
                         classes="text-none",
                         color="primary",
@@ -107,6 +86,27 @@ class FieldSelection(v3.VNavigationDrawer):
                             "variables_selected.length === 0 || variables_loaded",
                         ),
                         click=load_variables,
+                        block=True,
+                    )
+                with v3.VCardActions(
+                    key="variables_selected.length",
+                    classes="flex-wrap py-1",
+                    style="overflow-y: auto; max-height: 100px; min-height: 42px;",
+                ):
+                    v3.VChip(
+                        "{{ variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length }} {{ vtype.name }}",
+                        v_for="(vtype, idx) in variable_types",
+                        key="idx",
+                        color=("vtype.color",),
+                        v_show=(
+                            "variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length",
+                        ),
+                        size="small",
+                        closable=True,
+                        click_close=(
+                            "variables_selected = variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type !== vtype.name)"
+                        ),
+                        classes="ma-1",
                     )
 
                 v3.VTextField(
