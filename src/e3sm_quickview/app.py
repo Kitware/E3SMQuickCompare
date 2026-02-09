@@ -1,22 +1,22 @@
 import asyncio
-import json
 import datetime
+import json
 import os
-
 from pathlib import Path
 
 from trame.app import TrameApp, asynchronous, file_upload
+from trame.decorators import change, controller, life_cycle, trigger
 from trame.ui.vuetify3 import VAppLayout
-from trame.widgets import vuetify3 as v3, client, html, dataclass, trame as tw, tauri
-from trame.decorators import controller, change, trigger, life_cycle
+from trame.widgets import client, dataclass, html, tauri
+from trame.widgets import trame as tw
+from trame.widgets import vuetify3 as v3
 
 from e3sm_quickview import module as qv_module
 from e3sm_quickview.assets import ASSETS
-from e3sm_quickview.components import doc, file_browser, css, toolbars, dialogs, drawers
+from e3sm_quickview.components import css, dialogs, doc, drawers, file_browser, toolbars
 from e3sm_quickview.pipeline import EAMVisSource
-from e3sm_quickview.utils import compute, cli
+from e3sm_quickview.utils import cli, compute
 from e3sm_quickview.view_manager import ViewManager
-
 
 v3.enable_lab()
 
@@ -133,7 +133,7 @@ class EAMApp(TrameApp):
                 UploadState="utils.get('document').querySelector('#fileUpload').click()",
                 ToggleHelp="compact_drawer = !compact_drawer",
             ) as mt:
-                mt.bind(["r"], "ResetCamera")
+                mt.bind(["z"], "ResetCamera")
                 mt.bind(["alt+0", "0"], "SizeAuto")
                 mt.bind(["alt+1", "1"], "Size1")
                 mt.bind(["alt+2", "2"], "Size2")

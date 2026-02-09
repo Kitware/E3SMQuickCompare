@@ -1,6 +1,7 @@
-from trame.widgets import vuetify3 as v3, html
-from e3sm_quickview.assets import ASSETS
+from trame.widgets import html
+from trame.widgets import vuetify3 as v3
 
+from e3sm_quickview.assets import ASSETS
 
 # -----------------------------------------------------------------------------
 # Tools
@@ -46,12 +47,12 @@ class ToolFieldSelection(Tool):
 class ToolResetCamera(Tool):
     def __init__(self):
         super().__init__(
-            icon="mdi-crop-free",
-            title="Reset camera",
+            icon="mdi-fit-to-page-outline",
+            title="Auto zoom",
             description="Recenter the visualizations to the full data.",
         )
         with self, v3.Template(v_slot_append=True):
-            v3.VHotkey(keys="r", variant="contained", inline=True)
+            v3.VHotkey(keys="z", variant="contained", inline=True)
 
 
 class ToolStateImportExport(Tool):
@@ -184,7 +185,7 @@ class LandingPage(v3.VContainer):
                 {Bold("EAM QuickView")} is an open-source, interactive visualization
                 tool designed for scientists working with the atmospheric component
                 of the {Link("Energy Exascale Earth System Model (E3SM)", "https://e3sm.org/")},
-                known as the E3SM Atmosphere Model (EAM). 
+                known as the E3SM Atmosphere Model (EAM).
                 Its Python- and {Link("Trame", "https://www.kitware.com/trame/")}-based
                 Graphical User Interface (GUI) provides intuitive access to {Link("ParaView's", "https://www.paraview.org/")} powerful analysis
                 and visualization capabilities, without the steep learning curve.
@@ -221,9 +222,9 @@ class LandingPage(v3.VContainer):
                         v3.VHotkey(keys="h", variant="contained", inline=True)
 
                     with v3.VRow(classes="ma-0 pb-4"):
-                        v3.VLabel("Reset Camera")
+                        v3.VLabel("Auto zoom")
                         v3.VSpacer()
-                        v3.VHotkey(keys="r", variant="contained", inline=True)
+                        v3.VHotkey(keys="z", variant="contained", inline=True)
 
                     with v3.VRow(classes="ma-0 pb-4"):
                         v3.VLabel("Toggle view interaction lock")
@@ -334,7 +335,7 @@ class LandingPage(v3.VContainer):
                 """
                 QuickView has been developed using EAM's history output on
                 the physics grids (pg2 grids) written by EAMv2, v3, and an
-                intermediate version towards v4 (EAMxx). 
+                intermediate version towards v4 (EAMxx).
                 Those sample output files can be found on Zenodo.
                 """
             )

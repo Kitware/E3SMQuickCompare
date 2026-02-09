@@ -1,7 +1,8 @@
 from pathlib import Path
-from trame.widgets import vuetify3 as v3
+
 from trame.app import asynchronous
 from trame.decorators import trigger
+from trame.widgets import vuetify3 as v3
 
 from e3sm_quickview import __version__ as quickview_version
 from e3sm_quickview.assets import ASSETS
@@ -75,10 +76,10 @@ class ResetCamera(ActionButton):
     def __init__(self, compact="compact_drawer", click=None):
         super().__init__(
             compact=compact,
-            title="Reset camera",
-            icon="mdi-crop-free",
+            title="Auto zoom",
+            icon="mdi-fit-to-page-outline",
             click=click,
-            keybinding="r",
+            keybinding="z",
         )
 
 
