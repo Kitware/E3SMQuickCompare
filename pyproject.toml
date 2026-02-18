@@ -65,7 +65,6 @@ packages = [
 ]
 
 [project.scripts]
-quickview-vue2 = "e3sm_quickview.app:main"
 quickview = "e3sm_quickview.app:main"
 
 [project.entry-points."jupyter_serverproxy_servers"]

@@ -1,6 +1,6 @@
 """Server proxy configuration for QuickView in JupyterLab."""
 
-import os
+from pathlib import Path
 
 
 def setup_quickview():
@@ -9,11 +9,7 @@ def setup_quickview():
     Returns a dictionary with the server process configuration that
     jupyter-server-proxy uses to launch and proxy QuickView.
     """
-    icon_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "icons",
-        "quickview.png",
-    )
+    icon_path = Path(__file__).with_name("icons") / "web.svg"
 
     return {
         "command": [
@@ -27,8 +23,8 @@ def setup_quickview():
         "timeout": 30,
         "launcher_entry": {
             "enabled": True,
-            "title": "QuickView",
-            "icon_path": icon_path,
+            "title": "E3SM QuickView",
+            "icon_path": str(icon_path.resolve()),
             "category": "Other",
         },
         "new_browser_tab": False,
