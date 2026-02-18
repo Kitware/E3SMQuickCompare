@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.3.2 (2026-02-18)
+
+### Bug Fixes
+
+- **jupyter**: Use an svg icon for launcher
+  ([`5020d18`](https://github.com/Kitware/QuickView/commit/5020d185a0353d89d34ee6308b2ad74c220f0bb2))
+
+
 ## v1.3.1 (2026-02-09)
 
 ### Bug Fixes
