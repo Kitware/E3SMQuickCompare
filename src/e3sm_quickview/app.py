@@ -95,11 +95,27 @@ class EAMApp(TrameApp):
 
     @life_cycle.server_ready
     def _tauri_ready(self, **_):
-        os.write(1, f"tauri-server-port={self.server.port}\n".encode())
+        jupyter_url_prefix = os.environ.get("JUPYTERHUB_SERVICE_PREFIX")
+        jupyter_url_api = os.environ.get("JUPYTERHUB_API_URL")
+        if jupyter_url_prefix:
+            base_url = "https://jupyter.nersc.gov"
+            if jupyter_url_api:
+                base_url = jupyter_url_api[:-8]
+
+            os.write(
+                1,
+                "\nUse URL below to connect to the application:\n\n  => "
+                f"{base_url}{jupyter_url_prefix}proxy/{self.server.port}"
+                "/index.html?ui=main&reconnect=auto\n\n".encode(),
+            )
+        else:
+            os.write(1, f"tauri-server-port={self.server.port}\n".encode())
 
     @life_cycle.client_connected
     def _tauri_show(self, **_):
-        os.write(1, "tauri-client-ready\n".encode())
+        jupyter_url_prefix = os.environ.get("JUPYTERHUB_SERVICE_PREFIX")
+        if not jupyter_url_prefix:
+            os.write(1, "tauri-client-ready\n".encode())
 
     # -------------------------------------------------------------------------
     # UI definition
@@ -562,7 +578,7 @@ class EAMApp(TrameApp):
 # -------------------------------------------------------------------------
 def main():
     app = EAMApp()
-    app.server.start()
+    app.server.start(show_connection_info=False, open_browser=False)
 
 
 if __name__ == "__main__":
