@@ -85,3 +85,36 @@ def get_cached_colorbar_image(colormap_name, inverted=False):
         return COLORBAR_CACHE[colormap_name].get(variant, "")
 
     return ""
+
+
+def lut_to_img(lut_proxy):
+    samples = 255
+    rgb = [0, 0, 0]
+    vtk_lut = lut_proxy.GetClientSideObject()
+    colorArray = vtkUnsignedCharArray()
+    colorArray.SetNumberOfComponents(3)
+    colorArray.SetNumberOfTuples(samples)
+    imgData = vtkImageData()
+    imgData.SetDimensions(samples, 1, 1)
+    imgData.GetPointData().SetScalars(colorArray)
+    writer = vtkPNGWriter()
+    writer.WriteToMemoryOn()
+    writer.SetInputData(imgData)
+    writer.SetCompressionLevel(1)
+
+    v_min = lut_proxy.RGBPoints[0]
+    v_max = lut_proxy.RGBPoints[-4]
+    step = (v_max - v_min) / (samples - 1)
+
+    for i in range(samples):
+        value = v_min + step * float(i)
+        vtk_lut.GetColor(value, rgb)
+        r = int(round(rgb[0] * 255))
+        g = int(round(rgb[1] * 255))
+        b = int(round(rgb[2] * 255))
+        colorArray.SetTuple3(i, r, g, b)
+
+    writer.Write()
+    base64_img = base64.standard_b64encode(writer.GetResult()).decode("utf-8")
+
+    return f"data:image/png;base64,{base64_img}"
