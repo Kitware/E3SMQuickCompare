@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v1.3.4 (2026-02-24)
+
+### Bug Fixes
+
+- **ColorMap**: Allow user to adjust number of colors
+  ([`2e60739`](https://github.com/Kitware/QuickView/commit/2e60739569de35fdb73068723cd48a39fc583c99))
+
+- **fields**: Always show scrollbar on table
+  ([`f0601c3`](https://github.com/Kitware/QuickView/commit/f0601c303c4d65eac205e75a18aeeb05f610b524))
+
+- **names**: Use original field name in table
+  ([`f29f9c2`](https://github.com/Kitware/QuickView/commit/f29f9c2c09d42170500c3291ad6c99a75132a3c5))
+
+- **toolbars**: Sliders and drop down for data selection and animation toolbars
+  ([`893e610`](https://github.com/Kitware/QuickView/commit/893e6104686b2d65f2f00e763e26ea5234538fb6))
+
+### Documentation
+
+- **readme**: Fix badges
+  ([`675c5c3`](https://github.com/Kitware/QuickView/commit/675c5c34b2f0a083f7f15e2e178d85119c488802))
+
+
 ## v1.3.3 (2026-02-20)
 
 ### Bug Fixes
