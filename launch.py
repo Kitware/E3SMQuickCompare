@@ -22,20 +22,23 @@ def setup_env():
 
 
 if __name__ == "__main__":
-    setup_env()
-    eampv = os.environ["EAMPVIEW"]
+    workdir = os.path.abspath(os.path.dirname(__file__))
+    app_path = os.path.join(workdir, "src", "e3sm_compareview", "app.py")
 
+    setup_env()
+    eampv = os.environ.get("EAMPVIEW")
     if eampv is None or len(eampv) == 0:
         print(
             "Env. variable 'EAMPVIEW' to point to ParaView python 'pvpython' not set/found"
         )
+        exit(1)
 
     args = [
         eampv,
         "--force-offscreen-rendering",
-        "quickview/app.py",
+        app_path,
         "--venv",
-        ".pvenv",
+        os.path.join(workdir, ".pvenv"),
     ]
     args.extend(sys.argv[1:])
 

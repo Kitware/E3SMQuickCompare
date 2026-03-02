@@ -9,9 +9,9 @@ from trame_dataclass.core import StateDataModel
 
 from paraview import simple
 
-from e3sm_quickview.components import view as tview
-from e3sm_quickview.utils.color import get_cached_colorbar_image, COLORBAR_CACHE
+from e3sm_compareview.components import view as tview
 from e3sm_quickview.presets import COLOR_BLIND_SAFE
+from e3sm_quickview.utils.color import COLORBAR_CACHE, get_cached_colorbar_image
 
 
 def auto_size_to_col(size):

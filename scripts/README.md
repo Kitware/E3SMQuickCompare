@@ -1,7 +1,7 @@
-# QuickView Scripts
+# CompareView Scripts
 
 This directory contains utility scripts for maintaining and developing
-QuickView.
+CompareView.
 
 ## Scripts
 
@@ -16,15 +16,15 @@ each colormap, improving runtime performance.
 ```bash
 # Requires ParaView's pvpython
 export EAMPVIEW=/path/to/paraview/bin/pvpython
-$EAMPVIEW scripts/generate_colorbar_cache.py > quickview/colorbar_cache.py
+$EAMPVIEW scripts/generate_colorbar_cache.py > /tmp/colorbar_cache.py
 ```
 
-This will update the `quickview/colorbar_cache.py` file with all colorbar
-images.
+This generates a standalone `COLORBAR_CACHE` payload you can use when updating
+`e3sm-quickview`.
 
 ### release.sh
 
-Automates the release process for QuickView, including version bumping, tagging,
+Automates the release process for CompareView, including version bumping, tagging,
 and creating GitHub releases with auto-generated changelogs from git history.
 
 **Usage:**

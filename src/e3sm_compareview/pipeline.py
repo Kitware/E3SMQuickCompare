@@ -2,6 +2,8 @@ import fnmatch
 import json
 import os
 
+import e3sm_quickview
+
 
 from paraview.simple import (
     FindSource,
@@ -68,7 +70,10 @@ class EAMVisSource:
 
         self.observer = ErrorObserver()
         try:
-            plugin_dir = os.path.join(os.path.dirname(__file__), "plugins")
+            plugin_dir = os.path.join(
+                os.path.dirname(e3sm_quickview.__file__),
+                "plugins",
+            )
             plugins = fnmatch.filter(os.listdir(path=plugin_dir), "*.py")
             for plugin in plugins:
                 print("Loading plugin : ", plugin)

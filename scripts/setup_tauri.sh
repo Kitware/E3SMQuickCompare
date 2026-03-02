@@ -19,12 +19,12 @@ python -m PyInstaller --clean --noconfirm \
         --collect-all pyproj \
         --collect-all netCDF4 \
         --collect-all paraview \
-        --collect-all e3sm_quickview \
+        --collect-all e3sm_compareview \
         --hidden-import pkgutil \
         --add-binary="$PVPYTHON_PATH:."  \
-        src/e3sm_quickview/app.py
+        src/e3sm_compareview/app.py
 
-# Generate trame www + quickview
+# Generate trame www + compareview
 python -m trame.tools.www --output ./src-tauri/www
 python -m trame.tools.www --output ./src-tauri/www e3sm_quickview.module
 

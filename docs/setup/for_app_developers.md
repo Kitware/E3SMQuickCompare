@@ -31,14 +31,14 @@ pip install -e .
 ----
 ## Launch the app from command line
 
-To launch the EAM QuickView GUI in its dedicated window, use
+To launch the EAM CompareView GUI in its dedicated window, use
 ```
-quickview -data /path/to/your/data.nc --con /path/to/connectivity.nc
+compareview -data /path/to/your/data.nc --con /path/to/connectivity.nc
 ```
 
 To launch server only (no browser popup), use
 ```
-quickview -df /path/to/your/data.nc -cf /path/to/connectivity.nc --server
+compareview -df /path/to/your/data.nc -cf /path/to/connectivity.nc --server
 ```
 
 ----
@@ -46,10 +46,10 @@ quickview -df /path/to/your/data.nc -cf /path/to/connectivity.nc --server
 
 ```
 # Run linter
-ruff check quickview/
+ruff check src/e3sm_compareview/
 
 # Run tests
-python -m quickview.app --help
+python -m e3sm_compareview.app --help
 
 # Bump version
 bumpversion patch

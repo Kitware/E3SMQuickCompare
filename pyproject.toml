@@ -31,6 +31,7 @@ dependencies = [
     "trame-components",
     "trame-tauri>=0.6.2",
     "Pillow",
+    "e3sm-quickview",
 ]
 
 [project.optional-dependencies]
@@ -51,30 +52,26 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build]
 include = [
-  "/src/e3sm_quickview/**/*.py",
-  "/src/e3sm_quickview/presets/**",
-  "/src/e3sm_quickview/data/**",
-  "/src/e3sm_quickview/assets/**",
-  "/src/e3sm_quickview/module/**",
-  "/src/e3sm_quickview/jupyter/**",
+  "/src/e3sm_compareview/**/*.py",
+  "/src/e3sm_compareview/data/**",
+  "/src/e3sm_compareview/assets/**",
+  "/src/e3sm_compareview/jupyter/**",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = [
-    "src/e3sm_quickview",
+    "src/e3sm_compareview",
 ]
 
 [project.scripts]
-quickview-vue2 = "e3sm_quickview.app:main"
-quickview = "e3sm_quickview.app:main"
+compareview-vue2 = "e3sm_compareview.app:main"
+compareview = "e3sm_compareview.app:main"
 
 [project.entry-points."jupyter_serverproxy_servers"]
-quickview = "e3sm_quickview.jupyter:setup_quickview"
+compareview = "e3sm_compareview.jupyter:setup_compareview"
 
 [tool.ruff.lint.per-file-ignores]
-# Ignore star import issues in ParaView plugins
-"e3sm_quickview/plugins/*.py" = ["F403", "F405"]
-"e3sm_quickview/pipeline.py" = ["F821"]  # Plugin classes loaded dynamically
+"e3sm_compareview/pipeline.py" = ["F821"]  # Plugin classes loaded dynamically
 
 [tool.semantic_release]
 version_toml = [
@@ -82,7 +79,7 @@ version_toml = [
     "src-tauri/Cargo.toml:package.version",
 ]
 version_variables = [
-    "src/e3sm_quickview/__init__.py:__version__",
+    "src/e3sm_compareview/__init__.py:__version__",
     "src-tauri/tauri.conf.json:version",
 ]
 build_command = """

@@ -433,7 +433,7 @@ class ParaViewFileBrowser(TrameComponent):
                     density="compact",
                     variant="outlined",
                     disabled=True,
-                    messages="The horizontal grids used by EAM are cubed spheres. Since these are unstructed grids, QuickView needs to know how to map data to the globe. Therefore, for each simulation data file, a 'connectivity file' needs to be provided.",
+                    messages="The horizontal grids used by EAM are cubed spheres. Since these are unstructured grids, CompareView needs to know how to map data to the globe. Therefore, for each simulation data file, a connectivity file needs to be provided.",
                 )
 
             v3.VDivider()

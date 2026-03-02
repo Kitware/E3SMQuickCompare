@@ -2,9 +2,50 @@ from trame.decorators import change
 from trame.widgets import html
 from trame.widgets import vuetify3 as v3
 
-from e3sm_quickview import __version__ as quickview_version
+from e3sm_compareview import __version__ as app_version
+from e3sm_compareview.assets import ASSETS
 from e3sm_quickview.components import css, tools
 from e3sm_quickview.utils import constants, js
+
+
+class AppLogo(v3.VTooltip):
+    def __init__(self, compact="compact_drawer"):
+        super().__init__(
+            text=f"CompareView {app_version}",
+            disabled=(f"!{compact}",),
+        )
+        with self:
+            with v3.Template(v_slot_activator="{ props }"):
+                with v3.VListItem(
+                    v_bind="props",
+                    click=f"{compact} = !{compact}",
+                ):
+                    with html.Div(classes="d-flex align-center flex-grow-1"):
+                        html.Img(
+                            src=ASSETS.icon,
+                            v_if=compact,
+                            style="width: 24px; height: 24px; object-fit: contain;",
+                        )
+                        html.Img(
+                            src=ASSETS.logo,
+                            v_else=True,
+                            style="height: 28px; max-width: 160px; object-fit: contain;",
+                        )
+                    v3.VProgressCircular(
+                        color="primary",
+                        indeterminate=True,
+                        v_show="trame__busy",
+                        v_if=compact,
+                        style="position: absolute !important;left: 50%;top: 50%; transform: translate(-50%, -50%);",
+                    )
+                    v3.VProgressLinear(
+                        v_else=True,
+                        color="primary",
+                        indeterminate=True,
+                        v_show="trame__busy",
+                        absolute=True,
+                        style="top:90%;width:100%;",
+                    )
 
 
 class Tools(v3.VNavigationDrawer):
@@ -24,7 +65,7 @@ class Tools(v3.VNavigationDrawer):
                     select_strategy="independent",
                     v_model_selected=("active_tools", ["load-data"]),
                 ):
-                    tools.AppLogo()
+                    AppLogo()
                     tools.ResetCamera(click=reset_camera)
 
                     v3.VDivider(classes="my-1")  # ---------------------
@@ -57,7 +98,7 @@ class Tools(v3.VNavigationDrawer):
             with html.Div(style=css.NAV_BAR_BOTTOM):
                 v3.VDivider()
                 v3.VLabel(
-                    f"{quickview_version}",
+                    f"{app_version}",
                     classes="text-center text-caption d-block text-wrap",
                 )
 
@@ -73,29 +114,6 @@ class FieldSelection(v3.VNavigationDrawer):
 
         with self:
             with html.Div(style="position:fixed;top:0;width: 500px;"):
-                with v3.VCardActions(
-                    key="variables_selected.length",
-                    classes="flex-wrap",
-                    style="overflow-y: auto; max-height: 100px;",
-                ):
-                    v3.VChip(
-                        "{{ variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length }} {{ vtype.name }}",
-                        v_for="(vtype, idx) in variable_types",
-                        key="idx",
-                        color=("vtype.color",),
-                        v_show=(
-                            "variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type === vtype.name).length",
-                        ),
-                        size="small",
-                        closable=True,
-                        click_close=(
-                            "variables_selected = variables_selected.filter(id => variables_listing.find(v => v.id === id)?.type !== vtype.name)",
-                        ),
-                        classes="ma-1",
-                    )
-
-                    v3.VSpacer()
-
                 # Simulation file selection dropdowns
                 with v3.VRow(classes="mx-2 my-2", dense=True, v_if="pv_files_data_simulation_files.length > 1"):
                     with v3.VCol(cols=6):
@@ -133,7 +151,6 @@ class FieldSelection(v3.VNavigationDrawer):
                         click=load_variables,
                     )
                 with v3.VCardActions(
-                    key="variables_selected.length",
                     classes="flex-wrap py-1",
                     style="overflow-y: auto; max-height: 100px; min-height: 42px;",
                 ):
