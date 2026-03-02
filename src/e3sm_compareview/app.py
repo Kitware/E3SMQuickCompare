@@ -66,6 +66,7 @@ class EAMApp(TrameApp):
                 "simulation_configs": [],
                 "control_simulation_file": "",
                 "comparison_mode": "diff",
+                "dragged_simulation_path": "",
             }
         )
 
@@ -312,7 +313,10 @@ class EAMApp(TrameApp):
         }
         state_content["files"] = {
             "simulation": str(Path(self.file_browser.get("data_simulation")).resolve()),
-            "simulations": list(self.file_browser.get("data_simulation_files") or []),
+            "simulations": [
+                entry["path"] for entry in (self.state.simulation_configs or [])
+            ]
+            or list(self.file_browser.get("data_simulation_files") or []),
             "connectivity": str(
                 Path(self.file_browser.get("data_connectivity")).resolve()
             ),
@@ -591,12 +595,14 @@ class EAMApp(TrameApp):
 
         if comparison_changed:
             self._refresh_source_simulations()
+            if self.state.variables_loaded and self._rebuild_active_layout(update_color=True):
+                return
             self.state.variables_loaded = False
             return
 
         if labels_changed and self.state.variables_selected and self.source.varmeta:
-            self._rebuild_active_layout()
-            self.view_manager.render()
+            self.source.RefreshViewSpecs(self.active_simulation_configs)
+            self.view_manager.refresh_view_specs(self.selected_variables)
 
     @change("projection")
     async def _on_projection(self, projection, **_):

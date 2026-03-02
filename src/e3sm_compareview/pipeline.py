@@ -276,9 +276,10 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                 "array_name": control_array_name,
                 "base_variable": var_name,
                 "role": "control",
-                "label": control["label"],
+                "label": f'{control["label"]} (control)',
                 "path": control["path"],
                 "index": 0,
+                "source_index": control.get("source_index", 0),
             }
             self.array_metadata[control_array_name] = control_metadata
 
@@ -296,11 +297,15 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                         "label": simulation["label"],
                         "path": simulation["path"],
                         "index": index,
+                        "source_index": simulation.get("source_index", index),
                     }
                     specs.append(comparison_spec)
                     self.array_metadata[comparison_spec["array_name"]] = comparison_spec
 
-                per_mode_specs[comparison_mode] = specs
+                per_mode_specs[comparison_mode] = sorted(
+                    specs,
+                    key=lambda spec: spec.get("source_index", 0),
+                )
 
             self.variable_view_specs[var_name] = per_mode_specs
 
@@ -309,6 +314,11 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
 
     def get_array_metadata(self, array_name):
         return self.array_metadata.get(array_name)
+
+    def RefreshViewSpecs(self, simulation_configs=None):
+        if simulation_configs is not None:
+            self.simulation_configs = simulation_configs
+        self._build_view_specs(self.loaded_variables)
 
     def Update(self, simulation_configs, conn_file, variables=None, force_reload=False):
         next_loaded_variables = (

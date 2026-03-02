@@ -42,9 +42,17 @@ def build_simulation_configs(simulation_files, existing_configs, control_file):
     existing = {
         entry["path"]: entry for entry in (existing_configs or []) if entry.get("path")
     }
+    existing_order = [
+        entry["path"]
+        for entry in (existing_configs or [])
+        if entry.get("path") in simulation_files
+    ]
+    ordered_files = existing_order + [
+        file_path for file_path in simulation_files if file_path not in existing
+    ]
     labels = default_simulation_labels(simulation_files)
     configs = []
-    for file_path in simulation_files:
+    for file_path in ordered_files:
         previous = existing.get(file_path, {})
         configs.append(
             {
@@ -87,11 +95,15 @@ def active_simulation_configs(configs, control_file):
     configs_by_path = {entry["path"]: entry for entry in configs}
     control_file = control_file or configs[0]["path"]
     control_config = configs_by_path.get(control_file, configs[0])
+    control_index = next(
+        (index for index, entry in enumerate(configs) if entry["path"] == control_config["path"]),
+        0,
+    )
 
-    active = [{**control_config, "role": "control"}]
+    active = [{**control_config, "role": "control", "source_index": control_index}]
     active.extend(
-        {**entry, "role": "comparison"}
-        for entry in configs
+        {**entry, "role": "comparison", "source_index": index}
+        for index, entry in enumerate(configs)
         if entry["path"] != control_config["path"] and entry.get("include", True)
     )
     return active

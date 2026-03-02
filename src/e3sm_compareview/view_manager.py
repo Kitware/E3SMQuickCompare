@@ -409,6 +409,17 @@ class ViewManager(TrameComponent):
         for view in self._active_views():
             view.update_color_range()
 
+    def refresh_view_specs(self, variables=None):
+        if variables is None:
+            variables = self._last_vars
+
+        for var_type, var_names in variables.items():
+            for var_name in var_names:
+                for view_spec in self.get_view_specs(var_name):
+                    view = self._var2view.get(view_spec["array_name"])
+                    if view is not None:
+                        view.update_view_spec(view_spec)
+
     def get_view(self, view_spec, variable_type):
         view_spec = self._resolve_view_spec(view_spec)
         array_name = view_spec["array_name"]
@@ -510,8 +521,9 @@ class ViewManager(TrameComponent):
                                     group_names = [
                                         view_spec["array_name"] for view_spec in view_specs
                                     ]
-                                    for view_spec in view_specs:
+                                    for order, view_spec in enumerate(view_specs, start=1):
                                         view = self.get_view(view_spec, var_type)
+                                        view.config.order = order
                                         view.config.swap_group = sorted(
                                             [
                                                 name
