@@ -7,6 +7,16 @@ from e3sm_compareview.assets import ASSETS
 from e3sm_quickview.components import css, tools
 from e3sm_quickview.utils import constants, js
 
+DRAWER_TRANSITION_STYLE = "transition: none !important;"
+
+
+def drawer_style(tool_name):
+    return (
+        f"{js.is_active(tool_name)} ? "
+        f"'transform: none; {DRAWER_TRANSITION_STYLE}' : "
+        f"'{DRAWER_TRANSITION_STYLE}'"
+    )
+
 
 class AppLogo(v3.VTooltip):
     def __init__(self, compact="compact_drawer"):
@@ -48,8 +58,51 @@ class AppLogo(v3.VTooltip):
                     )
 
 
+class SimulationSelectionTool(v3.VTooltip):
+    def __init__(self, click=None, compact="compact_drawer"):
+        super().__init__(
+            text="Simulation selection",
+            disabled=(f"!{compact}",),
+        )
+        with self:
+            with v3.Template(v_slot_activator="{ props }"):
+                v3.VListItem(
+                    v_bind="props",
+                    active=(js.is_active("select-simulations"),),
+                    prepend_icon="mdi-database-cog-outline",
+                    title=(f"{compact} ? null : 'Simulation selection'",),
+                    click=click,
+                    disabled=("simulation_configs.length === 0",),
+                )
+
+
+class FieldSelectionTool(v3.VTooltip):
+    def __init__(self, click=None, compact="compact_drawer"):
+        super().__init__(
+            text="Variable selection",
+            disabled=(f"!{compact}",),
+        )
+        with self:
+            with v3.Template(v_slot_activator="{ props }"):
+                with v3.VListItem(
+                    v_bind="props",
+                    active=(js.is_active("select-fields"),),
+                    prepend_icon="mdi-list-status",
+                    title=(f"{compact} ? null : 'Variable selection'",),
+                    click=click,
+                    disabled=("variables_listing.length === 0",),
+                ):
+                    with v3.Template(v_slot_append=True):
+                        v3.VHotkey(
+                            keys="v",
+                            variant="contained",
+                            inline=True,
+                            classes="mt-n2",
+                        )
+
+
 class Tools(v3.VNavigationDrawer):
-    def __init__(self, reset_camera=None):
+    def __init__(self, reset_camera=None, toggle_toolbar=None):
         super().__init__(
             permanent=True,
             rail=("compact_drawer", True),
@@ -72,12 +125,21 @@ class Tools(v3.VNavigationDrawer):
 
                     tools.StateImportExport()
                     tools.OpenFile()
+                    SimulationSelectionTool(
+                        click=(toggle_toolbar, "['select-simulations']")
+                    )
 
                     v3.VDivider(classes="my-1")  # ---------------------
 
-                    tools.FieldSelection()
+                    FieldSelectionTool(click=(toggle_toolbar, "['select-fields']"))
                     tools.DataSelection()
                     tools.Animation()
+                    tools.ToggleButton(
+                        compact="compact_drawer",
+                        title="Comparison mode",
+                        icon="mdi-compare-horizontal",
+                        value="comparison-controls",
+                    )
 
                     v3.VDivider(classes="my-1")  # ---------------------
 
@@ -109,32 +171,11 @@ class FieldSelection(v3.VNavigationDrawer):
             model_value=(js.is_active("select-fields"),),
             width=500,
             permanent=True,
-            style=(f"{js.is_active('select-fields')} ? 'transform: none;' : ''",),
+            style=(drawer_style("select-fields"),),
         )
 
         with self:
             with html.Div(style="position:fixed;top:0;width: 500px;"):
-                # Simulation file selection dropdowns
-                with v3.VRow(classes="mx-2 my-2", dense=True, v_if="pv_files_data_simulation_files.length > 1"):
-                    with v3.VCol(cols=6):
-                        v3.VSelect(
-                            v_model=("ctrl_simulation_file", "pv_files_data_simulation_files[0]"),
-                            items=("pv_files_data_simulation_files", []),
-                            label="Control Simulation",
-                            density="compact",
-                            variant="outlined",
-                            hide_details=True,
-                        )
-                    with v3.VCol(cols=6):
-                        v3.VSelect(
-                            v_model=("test_simulation_file", "pv_files_data_simulation_files[1] || pv_files_data_simulation_files[0]"),
-                            items=("pv_files_data_simulation_files", []),
-                            label="Test Simulation",
-                            density="compact",
-                            variant="outlined",
-                            hide_details=True,
-                        )
-
                 with v3.VCardActions(classes="px-2", style="min-height: 0;"):
                     v3.VBtn(
                         classes="text-none",
@@ -205,6 +246,97 @@ class FieldSelection(v3.VNavigationDrawer):
     def _on_dirty_variable_selection(self, **_):
         self.state.variables_loaded = False
 
-    @change("ctrl_simulation_file", "test_simulation_file")
-    def _on_dirty_simulation_selection(self, **_):
-        self.state.variables_loaded = False
+
+class SimulationSelection(v3.VNavigationDrawer):
+    def __init__(self):
+        super().__init__(
+            model_value=(js.is_active("select-simulations"),),
+            width=500,
+            permanent=True,
+            style=(drawer_style("select-simulations"),),
+        )
+
+        with self:
+            with html.Div(style="position:fixed;top:0;width: 500px;"):
+                with v3.VToolbar(
+                    color="white",
+                    density="compact",
+                    classes="border-b-thin",
+                ):
+                    v3.VIcon("mdi-database-cog-outline", classes="ml-4 mr-2")
+                    v3.VLabel("Simulation selection", classes="text-subtitle-2")
+                    v3.VSpacer()
+                    html.Div(
+                        "{{ simulation_configs.length }} loaded",
+                        classes="text-caption mr-4",
+                    )
+
+                with html.Div(v_if="simulation_configs.length === 0", classes="pa-4"):
+                    html.Div(
+                        "Load simulation files first, then choose the control and comparison runs here.",
+                        classes="text-body-2 text-medium-emphasis",
+                    )
+
+                with html.Div(
+                    v_else=True,
+                    classes="pa-2",
+                    style="max-height: calc(100vh - 48px); overflow-y: auto;",
+                ):
+                    with v3.VCard(
+                        v_for="(entry, idx) in simulation_configs",
+                        key="`${entry.path}-card`",
+                        variant="outlined",
+                        classes="mb-2",
+                    ):
+                        with v3.VCardText(classes="pa-3"):
+                            with v3.VRow(dense=True, classes="align-center"):
+                                with v3.VCol(cols=12, md=6):
+                                    v3.VTextField(
+                                        model_value=("entry.label",),
+                                        update_modelValue="""
+simulation_configs = simulation_configs.map((sim) =>
+  sim.path === entry.path ? ({ ...sim, label: $event }) : sim
+)
+""",
+                                        label="Label",
+                                        density="compact",
+                                        variant="outlined",
+                                        hide_details=True,
+                                    )
+                                with v3.VCol(cols=6, md=3):
+                                    v3.VBtn(
+                                        text=(
+                                            "control_simulation_file === entry.path ? 'Control' : 'Set control'",
+                                        ),
+                                        variant=(
+                                            "control_simulation_file === entry.path ? 'flat' : 'outlined'",
+                                        ),
+                                        color=(
+                                            "control_simulation_file === entry.path ? 'primary' : 'default'",
+                                        ),
+                                        classes="text-none w-100",
+                                        style="min-width: 112px;",
+                                        size="small",
+                                        click="control_simulation_file = entry.path",
+                                    )
+                                with v3.VCol(cols=6, md=3):
+                                    v3.VCheckbox(
+                                        model_value=(
+                                            "control_simulation_file === entry.path ? true : entry.include",
+                                        ),
+                                        update_modelValue="""
+simulation_configs = simulation_configs.map((sim) =>
+  sim.path === entry.path ? ({ ...sim, include: !!$event }) : sim
+)
+""",
+                                        label="Include",
+                                        density="compact",
+                                        hide_details=True,
+                                        disabled=("control_simulation_file === entry.path",),
+                                    )
+                            html.Div(
+                                "{{ entry.path }}",
+                                classes="text-caption text-medium-emphasis mt-2",
+                                style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;",
+                                title=("entry.path",),
+                            )

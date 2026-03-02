@@ -12,6 +12,12 @@ from trame.widgets import trame as tw
 from trame.widgets import vuetify3 as v3
 
 from e3sm_compareview.assets import ASSETS
+from e3sm_compareview.comparison import (
+    active_simulation_configs,
+    build_simulation_configs,
+    comparison_signature_for,
+    label_signature_for,
+)
 from e3sm_compareview.components import drawers, file_browser, toolbars
 from e3sm_compareview.pipeline import EAMVisSource
 from e3sm_compareview.view_manager import ViewManager
@@ -20,6 +26,8 @@ from e3sm_quickview import module as qv_module
 from e3sm_quickview.utils import cli, compute
 
 v3.enable_lab()
+
+EXCLUSIVE_DRAWERS = {"select-fields", "select-simulations"}
 
 
 class EAMApp(TrameApp):
@@ -54,11 +62,10 @@ class EAMApp(TrameApp):
                 "timestamps": [],
                 # Fields summaries
                 "fields_avgs": {},
-                # Simulation file selection for ctrl/test comparison
-                "ctrl_simulation_file": "",
-                "test_simulation_file": "",
-                # Column visibility for variable comparisons
-                "selected_columns": ["ctrl", "test", "diff", "comp1", "comp2"],
+                # Simulation comparison selection
+                "simulation_configs": [],
+                "control_simulation_file": "",
+                "comparison_mode": "diff",
             }
         )
 
@@ -73,6 +80,8 @@ class EAMApp(TrameApp):
             home=None if args.user_home else args.workdir,  # can use current=
             group="",
         )
+        self._comparison_signature = ()
+        self._simulation_label_signature = ()
 
         # Process CLI to pre-load data
         if args.state is not None:
@@ -177,11 +186,13 @@ class EAMApp(TrameApp):
             with v3.VLayout():
                 drawers.Tools(
                     reset_camera=self.view_manager.reset_camera,
+                    toggle_toolbar=self.toggle_toolbar,
                 )
 
                 with v3.VMain():
                     dialogs.FileOpen(self.file_browser)
                     dialogs.StateDownload()
+                    drawers.SimulationSelection()
                     drawers.FieldSelection(load_variables=self.data_load_variables)
 
                     with v3.VContainer(classes="h-100 pa-0", fluid=True):
@@ -192,6 +203,7 @@ class EAMApp(TrameApp):
                             # Fixed overlay for toolbars
                             with html.Div(style=css.TOOLBARS_FIXED_OVERLAY):
                                 toolbars.Layout(apply_size=self.view_manager.apply_size)
+                                toolbars.ComparisonMode()
                                 toolbars.Cropping()
                                 toolbars.DataSelection()
                                 toolbars.Animation()
@@ -226,6 +238,64 @@ class EAMApp(TrameApp):
         # Remove var type (first char)
         return [var for var in self.state.variables_selected]
 
+    @property
+    def active_simulation_configs(self):
+        return active_simulation_configs(
+            self.state.simulation_configs, self.state.control_simulation_file
+        )
+
+    def _selected_variables_to_show(self):
+        vars_to_show = self.selected_variables
+        return vars_to_show if any(vars_to_show.values()) else None
+
+    def _update_variable_listing(self):
+        self.state.variables_filter = ""
+        self.state.variables_listing = [
+            {
+                "name": var.name,
+                "type": ", ".join(var.dimensions),
+                "id": f"{var.name}",
+            }
+            for _, var in self.source.varmeta.items()
+        ]
+
+        from e3sm_quickview.utils.colors import get_type_color
+
+        # Build dynamic type-color mapping.
+        dim_types = sorted(
+            set(", ".join(var.dimensions) for var in self.source.varmeta.values())
+        )
+        self.state.variable_types = [
+            {"name": dim_type, "color": get_type_color(index)}
+            for index, dim_type in enumerate(dim_types)
+        ]
+
+    def _rebuild_active_layout(self, update_color=False):
+        vars_to_show = self._selected_variables_to_show()
+        if not vars_to_show:
+            return False
+
+        self.view_manager.build_auto_layout(vars_to_show)
+        if update_color:
+            self.view_manager.update_color_range()
+            self.view_manager.render()
+        return True
+
+    def _refresh_source_simulations(self):
+        if not self.source.conn_file:
+            return
+
+        self.source.Update(
+            simulation_configs=self.active_simulation_configs,
+            conn_file=self.source.conn_file,
+        )
+        if self.source.valid and self.source.varmeta is not None:
+            self._update_variable_listing()
+            valid_variables = set(self.source.varmeta)
+            self.state.variables_selected = [
+                var for var in self.state.variables_selected if var in valid_variables
+            ]
+
     # -------------------------------------------------------------------------
     # Methods connected to UI
     # -------------------------------------------------------------------------
@@ -242,9 +312,15 @@ class EAMApp(TrameApp):
         }
         state_content["files"] = {
             "simulation": str(Path(self.file_browser.get("data_simulation")).resolve()),
+            "simulations": list(self.file_browser.get("data_simulation_files") or []),
             "connectivity": str(
                 Path(self.file_browser.get("data_connectivity")).resolve()
             ),
+        }
+        state_content["comparisons"] = {
+            "control": self.state.control_simulation_file,
+            "mode": self.state.comparison_mode,
+            "simulations": self.state.simulation_configs,
         }
         state_content["variables-selection"] = self.state.variables_selected
         state_content["layout"] = {
@@ -268,29 +344,33 @@ class EAMApp(TrameApp):
         views_to_export = state_content["views"] = []
         for view_type, var_names in active_variables.items():
             for var_name in var_names:
-                config = self.view_manager.get_view(var_name, view_type).config
-                views_to_export.append(
-                    {
-                        "type": view_type,
-                        "name": var_name,
-                        "config": {
-                            # lut
-                            "preset": config.preset,
-                            "invert": config.invert,
-                            "use_log_scale": config.use_log_scale,
-                            # layout
-                            "order": config.order,
-                            "size": config.size,
-                            "offset": config.offset,
-                            "break_row": config.break_row,
-                            # color range
-                            "override_range": config.override_range,
-                            "color_range": config.color_range,
-                            "color_value_min": config.color_value_min,
-                            "color_value_max": config.color_value_max,
-                        },
-                    }
-                )
+                for view_spec in self.source.get_view_specs(
+                    var_name, self.state.comparison_mode
+                ):
+                    config = self.view_manager.get_view(view_spec, view_type).config
+                    views_to_export.append(
+                        {
+                            "type": view_type,
+                            "name": var_name,
+                            "array_name": view_spec["array_name"],
+                            "config": {
+                                # lut
+                                "preset": config.preset,
+                                "invert": config.invert,
+                                "use_log_scale": config.use_log_scale,
+                                # layout
+                                "order": config.order,
+                                "size": config.size,
+                                "offset": config.offset,
+                                "break_row": config.break_row,
+                                # color range
+                                "override_range": config.override_range,
+                                "color_range": config.color_range,
+                                "color_value_min": config.color_value_min,
+                                "color_value_max": config.color_value_max,
+                            },
+                        }
+                    )
 
         return json.dumps(state_content, indent=2)
 
@@ -309,12 +389,29 @@ class EAMApp(TrameApp):
 
     async def _import_state(self, state_content):
         # Files
-        self.file_browser.set_data_simulation(state_content["files"]["simulation"])
+        simulation_files = state_content["files"].get("simulations")
+        if simulation_files is None:
+            simulation_file = state_content["files"]["simulation"]
+            simulation_files = [simulation_file] if simulation_file else []
+
+        self.file_browser.set("data_simulation_files", simulation_files)
+        if simulation_files:
+            self.file_browser.set("data_simulation", simulation_files[-1])
         self.file_browser.set_data_connectivity(state_content["files"]["connectivity"])
         await self.data_loading_open(
-            self.file_browser.get("data_simulation_files"),
+            simulation_files,
             self.file_browser.get("data_connectivity"),
         )
+
+        comparisons = state_content.get("comparisons", {})
+        if comparisons:
+            self.state.simulation_configs = comparisons.get(
+                "simulations", self.state.simulation_configs
+            )
+            self.state.control_simulation_file = comparisons.get(
+                "control", self.state.control_simulation_file
+            )
+            self.state.comparison_mode = comparisons.get("mode", "diff")
 
         # Load variables
         self.state.variables_selected = state_content["variables-selection"]
@@ -325,8 +422,8 @@ class EAMApp(TrameApp):
         # Update view states
         for view_state in state_content["views"]:
             view_type = view_state["type"]
-            var_name = view_state["name"]
-            config = self.view_manager.get_view(var_name, view_type).config
+            array_name = view_state.get("array_name", view_state["name"])
+            config = self.view_manager.get_view(array_name, view_type).config
             config.update(**view_state["config"])
 
         # Update layout
@@ -353,21 +450,20 @@ class EAMApp(TrameApp):
         self.state.timestamps = []
 
         self.state.data_files = simulation_files
-        self.state.control_data = ""
-        self.state.test_data = []
-
-        # Initialize ctrl/test file selection
-        if len(simulation_files) >= 2:
-            self.state.ctrl_simulation_file = simulation_files[0]
-            self.state.test_simulation_file = simulation_files[1]
-        elif len(simulation_files) == 1:
-            self.state.ctrl_simulation_file = simulation_files[0]
-            self.state.test_simulation_file = simulation_files[0]
+        # Initialize simulation selection using the current files and saved labels.
+        simulation_configs, control_file = build_simulation_configs(
+            simulation_files,
+            self.state.simulation_configs,
+            self.state.control_simulation_file,
+        )
+        self.state.simulation_configs = simulation_configs
+        self.state.control_simulation_file = control_file
 
         await asyncio.sleep(0.1)
+        # Use the selected simulations from the UI state.
+        active_simulations = self.active_simulation_configs
         self.source.Update(
-            ctrl_file=simulation_files[0],
-            test_file=simulation_files[1] if len(simulation_files) > 1 else simulation_files[0],
+            simulation_configs=active_simulations,
             conn_file=connectivity,
         )
 
@@ -378,37 +474,13 @@ class EAMApp(TrameApp):
                 s.active_tools = list(
                     set(
                         (
-                            "select-fields",
+                            "select-simulations",
                             *(tool for tool in s.active_tools if tool != "load-data"),
                         )
                     )
                 )
 
-                self.state.variables_filter = ""
-                self.state.variables_listing = [
-                    *(
-                        {
-                            "name": var.name,
-                            "type": ", ".join(var.dimensions),
-                            "id": f"{var.name}",
-                        }
-                        for _, var in self.source.varmeta.items()
-                    ),
-                ]
-
-                # Build dynamic type-color mapping
-                from e3sm_quickview.utils.colors import get_type_color
-
-                dim_types = sorted(
-                    set(
-                        ", ".join(var.dimensions)
-                        for var in self.source.varmeta.values()
-                    )
-                )
-                self.state.variable_types = [
-                    {"name": t, "color": get_type_color(i)}
-                    for i, t in enumerate(dim_types)
-                ]
+                self._update_variable_listing()
 
                 # Update Layer/Time values and ui layout
                 n_cols = 0
@@ -460,7 +532,6 @@ class EAMApp(TrameApp):
     async def _data_load_variables(self):
         """Called at 'Load Variables' button click"""
         vars_to_show = self.selected_variables
-        print("Loading variables:", vars_to_show)
 
         # Flatten the list of lists
         flattened_vars = [var for var_list in vars_to_show.values() for var in var_list]
@@ -473,13 +544,9 @@ class EAMApp(TrameApp):
         await self.server.network_completion
 
         await asyncio.sleep(0.1)
-        # Use the selected ctrl/test files from the UI state
-        ctrl_file = self.state.ctrl_simulation_file or self.source.ctrl_file
-        test_file = self.state.test_simulation_file or self.source.test_file
-
+        active_simulations = self.active_simulation_configs
         self.source.Update(
-            ctrl_file=ctrl_file,
-            test_file=test_file,
+            simulation_configs=active_simulations,
             conn_file=self.source.conn_file,
             variables=flattened_vars,
             force_reload=True,
@@ -496,17 +563,40 @@ class EAMApp(TrameApp):
 
     @change("layout_grouped")
     def _on_layout_change(self, **_):
-        vars_to_show = self.selected_variables
+        self._rebuild_active_layout()
 
-        if any(vars_to_show.values()):
-            self.view_manager.build_auto_layout(vars_to_show)
-
-    @change("selected_columns")
-    def _on_selected_columns_change(self, **_):
+    @change("comparison_mode")
+    def _on_comparison_mode_change(self, **_):
         if not self.state.variables_loaded:
             return
-        self.view_manager.update_color_range()
-        self.view_manager.render()
+
+        self._rebuild_active_layout(update_color=True)
+
+    @change("simulation_configs", "control_simulation_file")
+    def _on_simulation_selection_change(self, simulation_configs, **_):
+        if simulation_configs:
+            valid_paths = {entry["path"] for entry in simulation_configs}
+            if self.state.control_simulation_file not in valid_paths:
+                self.state.control_simulation_file = simulation_configs[0]["path"]
+        comparison_signature = comparison_signature_for(
+            simulation_configs, self.state.control_simulation_file
+        )
+        label_signature = label_signature_for(simulation_configs)
+
+        comparison_changed = comparison_signature != self._comparison_signature
+        labels_changed = label_signature != self._simulation_label_signature
+
+        self._comparison_signature = comparison_signature
+        self._simulation_label_signature = label_signature
+
+        if comparison_changed:
+            self._refresh_source_simulations()
+            self.state.variables_loaded = False
+            return
+
+        if labels_changed and self.state.variables_selected and self.source.varmeta:
+            self._rebuild_active_layout()
+            self.view_manager.render()
 
     @change("projection")
     async def _on_projection(self, projection, **_):
@@ -586,14 +676,16 @@ class EAMApp(TrameApp):
             self.state.active_tools = []
             return
 
+        active_tools = list(self.state.active_tools)
         if toolbar_name in self.state.active_tools:
-            # remove
             self.state.active_tools = [
                 n for n in self.state.active_tools if n != toolbar_name
             ]
         else:
-            # add
-            self.state.active_tools.append(toolbar_name)
+            if toolbar_name in EXCLUSIVE_DRAWERS:
+                active_tools = [n for n in active_tools if n not in EXCLUSIVE_DRAWERS]
+            active_tools.append(toolbar_name)
+            self.state.active_tools = active_tools
             self.state.dirty("active_tools")
 
 

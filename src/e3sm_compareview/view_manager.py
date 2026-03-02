@@ -48,6 +48,7 @@ def lut_name(element):
 
 class ViewConfiguration(StateDataModel):
     variable: str
+    label: str = ""
     preset: str = "Inferno (matplotlib)"
     preset_img: str
     invert: bool = False
@@ -69,20 +70,28 @@ class ViewConfiguration(StateDataModel):
 
 
 class VariableView(TrameComponent):
-    def __init__(self, server, source, variable_name, variable_type):
+    def __init__(self, server, source, view_spec, variable_type):
         super().__init__(server)
-        self.config = ViewConfiguration(server, variable=variable_name)
         self.source = source
-        self.variable_name = variable_name
+        self.view_spec = view_spec
+        self.array_name = view_spec["array_name"]
+        self.base_variable = view_spec["base_variable"]
+        self.role = view_spec["role"]
+        self.comparison_mode = view_spec.get("comparison_mode", "diff")
+        self.display_label = view_spec["label"]
         self.variable_type = variable_type
-        self.name = f"view_{self.variable_name}"
-        if self.variable_name.endswith(("_ctrl", "_test")):
+        self.config = ViewConfiguration(server, variable=self.array_name)
+        self.config.label = self.display_label
+        self.name = f"view_{self.array_name}"
+
+        if self.role == "control":
             self.config.preset = "navia"
-        elif self.variable_name.endswith("_diff"):
+        elif self.role == "diff":
             self.config.preset = "Cool to Warm (Extended)"
-        elif self.variable_name.endswith(("_comp1", "_comp2")):
+        elif self.role in ("comp1", "comp2"):
             self.config.preset = "bam"
             self.config.invert = True
+
         self.view = simple.CreateRenderView()
         self.view.GetRenderWindow().SetOffScreenRendering(True)
         self.view.InteractionMode = "2D"
@@ -99,33 +108,34 @@ class VariableView(TrameComponent):
         )
 
         # Lookup table color management
-        simple.ColorBy(self.representation, ("CELLS", variable_name))
-        self.lut = simple.GetColorTransferFunction(variable_name)
+        simple.ColorBy(self.representation, ("CELLS", self.array_name))
+        self.lut = simple.GetColorTransferFunction(self.array_name)
         self.lut.NanOpacity = 0.0
 
         self.view.ResetActiveCameraToNegativeZ()
         self.view.ResetCamera(True, 0.9)
         self.disable_render = False
 
-        # Add annotation to the view
+        # Add annotations to the view
         # - continents
         globe = source.views["continents"]
-        repG = simple.Show(globe, self.view)
-        simple.ColorBy(repG, None)
-        repG.SetRepresentationType("Wireframe")
-        repG.RenderLinesAsTubes = 1
-        repG.LineWidth = 1.0
-        repG.AmbientColor = [0.67, 0.67, 0.67]
-        repG.DiffuseColor = [0.67, 0.67, 0.67]
-        self.rep_globe = repG
+        rep_globe = simple.Show(globe, self.view)
+        simple.ColorBy(rep_globe, None)
+        rep_globe.SetRepresentationType("Wireframe")
+        rep_globe.RenderLinesAsTubes = 1
+        rep_globe.LineWidth = 1.0
+        rep_globe.AmbientColor = [0.67, 0.67, 0.67]
+        rep_globe.DiffuseColor = [0.67, 0.67, 0.67]
+        self.rep_globe = rep_globe
+
         # - gridlines
-        annot = source.views["grid_lines"]
-        repAn = simple.Show(annot, self.view)
-        repAn.SetRepresentationType("Wireframe")
-        repAn.AmbientColor = [0.67, 0.67, 0.67]
-        repAn.DiffuseColor = [0.67, 0.67, 0.67]
-        repAn.Opacity = 0.4
-        self.rep_grid = repAn
+        grid_lines = source.views["grid_lines"]
+        rep_grid = simple.Show(grid_lines, self.view)
+        rep_grid.SetRepresentationType("Wireframe")
+        rep_grid.AmbientColor = [0.67, 0.67, 0.67]
+        rep_grid.DiffuseColor = [0.67, 0.67, 0.67]
+        rep_grid.Opacity = 0.4
+        self.rep_grid = rep_grid
 
         # Reactive behavior
         self.config.watch(
@@ -141,6 +151,14 @@ class VariableView(TrameComponent):
 
         # GUI
         self._build_ui()
+
+    def update_view_spec(self, view_spec):
+        self.view_spec = view_spec
+        self.base_variable = view_spec["base_variable"]
+        self.role = view_spec["role"]
+        self.comparison_mode = view_spec.get("comparison_mode", "diff")
+        self.display_label = view_spec["label"]
+        self.config.label = self.display_label
 
     def render(self):
         if self.disable_render or not self.ctx.has(self.name):
@@ -190,106 +208,41 @@ class VariableView(TrameComponent):
         if self.config.color_value_min_valid and self.config.color_value_max_valid:
             self.config.color_range = [min_value, max_value]
 
-    def _parse_comparison(self):
-        for comp_type in ("ctrl", "test", "diff", "comp1", "comp2"):
-            suffix = f"_{comp_type}"
-            if self.variable_name.endswith(suffix):
-                return self.variable_name[: -len(suffix)], comp_type
-        return self.variable_name, None
-
     @staticmethod
     def _is_finite_range(data_range):
         if data_range is None or len(data_range) < 2:
             return False
         return math.isfinite(data_range[0]) and math.isfinite(data_range[1])
 
-    def _ctrl_test_visible(self):
-        selected_columns = getattr(self.state, "selected_columns", None)
-        if not selected_columns:
-            return False
-        return "ctrl" in selected_columns and "test" in selected_columns
-
-    def _get_ctrl_test_combined_range(self):
-        base_name, comp_type = self._parse_comparison()
-        if comp_type not in ("ctrl", "test"):
-            return None
-        if not self._ctrl_test_visible():
-            return None
-
+    def _get_default_range(self):
         data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
-        ctrl_array = data_info.GetArray(f"{base_name}_ctrl")
-        test_array = data_info.GetArray(f"{base_name}_test")
-        if not ctrl_array or not test_array:
-            return None
-
-        ctrl_range = ctrl_array.GetRange()
-        test_range = test_array.GetRange()
-        if not (self._is_finite_range(ctrl_range) and self._is_finite_range(test_range)):
-            return None
-
-        return [min(ctrl_range[0], test_range[0]), max(ctrl_range[1], test_range[1])]
-
-    def _get_diff_centered_range(self):
-        _, comp_type = self._parse_comparison()
-        if comp_type != "diff":
-            return None
-
-        data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
-        diff_array = data_info.GetArray(self.variable_name)
-        if not diff_array:
-            return None
-
-        diff_range = diff_array.GetRange()
-        if not self._is_finite_range(diff_range):
-            return None
-
-        max_abs = max(abs(diff_range[0]), abs(diff_range[1]))
-        return [-max_abs, max_abs]
-
-    def _comp_visible(self):
-        selected_columns = getattr(self.state, "selected_columns", None)
-        if not selected_columns:
-            return False
-        return "comp1" in selected_columns and "comp2" in selected_columns
-
-    def _get_comp_centered_range(self):
-        base_name, comp_type = self._parse_comparison()
-        if comp_type not in ("comp1", "comp2"):
-            return None
-
-        data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
-        if self._comp_visible():
-            comp1_array = data_info.GetArray(f"{base_name}_comp1")
-            comp2_array = data_info.GetArray(f"{base_name}_comp2")
-            if not comp1_array or not comp2_array:
-                return None
-
-            comp1_range = comp1_array.GetRange()
-            comp2_range = comp2_array.GetRange()
-            if not (
-                self._is_finite_range(comp1_range)
-                and self._is_finite_range(comp2_range)
+        if self.role != "control":
+            max_abs = None
+            for view_spec in self.source.get_view_specs(
+                self.base_variable, self.comparison_mode
             ):
-                return None
-
-            max_abs = max(
-                abs(comp1_range[0]),
-                abs(comp1_range[1]),
-                abs(comp2_range[0]),
-                abs(comp2_range[1]),
-            )
-            return [-max_abs, max_abs]
-
-        comp_array = data_info.GetArray(self.variable_name)
-        if not comp_array:
+                if view_spec["role"] == "control":
+                    continue
+                data_array = data_info.GetArray(view_spec["array_name"])
+                if not data_array:
+                    continue
+                data_range = data_array.GetRange()
+                if not self._is_finite_range(data_range):
+                    continue
+                candidate = max(abs(data_range[0]), abs(data_range[1]))
+                max_abs = candidate if max_abs is None else max(max_abs, candidate)
+            if max_abs is not None:
+                return [-max_abs, max_abs]
             return None
 
-        comp_range = comp_array.GetRange()
-        if not self._is_finite_range(comp_range):
+        data_array = data_info.GetArray(self.array_name)
+        if not data_array:
             return None
 
-        max_abs = max(abs(comp_range[0]), abs(comp_range[1]))
-        return [-max_abs, max_abs]
+        data_range = data_array.GetRange()
+        if self._is_finite_range(data_range):
+            return list(data_range)
+        return None
 
     def update_color_range(self, *_):
         if self.config.override_range:
@@ -307,21 +260,7 @@ class VariableView(TrameComponent):
 
             self.lut.RescaleTransferFunction(*self.config.color_range)
         else:
-            data_range = self._get_diff_centered_range()
-            if data_range is None:
-                data_range = self._get_comp_centered_range()
-            if data_range is None:
-                data_range = self._get_ctrl_test_combined_range()
-            if data_range is None:
-                self.representation.RescaleTransferFunctionToDataRange(False, True)
-                data_array = (
-                    self.source.views["atmosphere_data"]
-                    .GetCellDataInformation()
-                    .GetArray(self.variable_name)
-                )
-                if data_array:
-                    data_range = data_array.GetRange()
-
+            data_range = self._get_default_range()
             if data_range is not None:
                 self.config.color_range = data_range
                 self.config.color_value_min = str(data_range[0])
@@ -349,11 +288,12 @@ class VariableView(TrameComponent):
                     style="flex-wrap: nowrap;",
                 ):
                     tview.create_size_menu(self.name, self.config)
-                    html.Div(
-                        self.variable_name,
-                        classes="text-subtitle-2 pr-2",
-                        style="user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;",
-                    )
+                    with self.config.provide_as("config"):
+                        html.Div(
+                            "{{ config.label }}",
+                            classes="text-subtitle-2 pr-2",
+                            style="user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;",
+                        )
 
                     v3.VIcon(
                         "mdi-lock-outline",
@@ -380,13 +320,6 @@ class VariableView(TrameComponent):
                             classes="text-caption px-1",
                             v_if="interfaces.length > 1",
                         )
-                    # v3.VSpacer()
-                    # html.Div(
-                    #     "avg = {{"
-                    #     f"fields_avgs['{self.variable_name}']?.toExponential(2) || 'N/A'"
-                    #     "}}",
-                    #     classes="text-caption px-1",
-                    # )
 
                 with html.Div(
                     style=(
@@ -434,8 +367,31 @@ class ViewManager(TrameComponent):
         for view in self._var2view.values():
             view._build_ui()
 
+    def _active_views(self):
+        if self._active_configs:
+            return [self._var2view[name] for name in self._active_configs]
+        return list(self._var2view.values())
+
+    def _resolve_view_spec(self, view_spec):
+        if not isinstance(view_spec, str):
+            return view_spec
+
+        return (
+            self.source.get_array_metadata(view_spec)
+            or next(
+                iter(self.source.get_view_specs(view_spec, self.state.comparison_mode)),
+                None,
+            )
+            or {
+                "array_name": view_spec,
+                "base_variable": view_spec,
+                "role": "control",
+                "label": view_spec,
+            }
+        )
+
     def reset_camera(self):
-        views = list(self._var2view.values())
+        views = self._active_views()
         for view in views:
             view.disable_render = True
 
@@ -446,30 +402,37 @@ class ViewManager(TrameComponent):
             view.disable_render = False
 
     def render(self):
-        for view in list(self._var2view.values()):
+        for view in self._active_views():
             view.render()
 
     def update_color_range(self):
-        for view in list(self._var2view.values()):
+        for view in self._active_views():
             view.update_color_range()
 
-    def get_view(self, variable_name, variable_type):
-        view = self._var2view.get(variable_name)
+    def get_view(self, view_spec, variable_type):
+        view_spec = self._resolve_view_spec(view_spec)
+        array_name = view_spec["array_name"]
+        view = self._var2view.get(array_name)
         if view is None:
             view = self._var2view.setdefault(
-                variable_name,
-                VariableView(self.server, self.source, variable_name, variable_type),
+                array_name,
+                VariableView(self.server, self.source, view_spec, variable_type),
             )
             view.set_camera_modified(self.sync_camera)
+        else:
+            view.update_view_spec(view_spec)
 
         return view
+
+    def get_view_specs(self, variable_name):
+        return self.source.get_view_specs(variable_name, self.state.comparison_mode)
 
     def sync_camera(self, camera, *_):
         if self._camera_sync_in_progress:
             return
         self._camera_sync_in_progress = True
 
-        for var_view in self._var2view.values():
+        for var_view in self._active_views():
             cam = var_view.camera
             if cam is camera:
                 continue
@@ -492,26 +455,22 @@ class ViewManager(TrameComponent):
             return
 
         if n_cols == 0:
-            # Auto based on group size
+            # Auto size views based on the number of comparison panels being shown.
             if self.state.layout_grouped:
-                for var_type in "smi":
-                    var_names = self._last_vars[var_type]
-                    total_size = len(var_names)
-
-                    if total_size == 0:
-                        continue
-
-                    size = auto_size_to_col(total_size)
-                    for name in var_names:
-                        config = self.get_view(name, var_type).config
-                        config.size = size
-
+                for var_type, var_names in self._last_vars.items():
+                    for var_name in var_names:
+                        view_specs = self.get_view_specs(var_name)
+                        if not view_specs:
+                            continue
+                        size = auto_size_to_col(len(view_specs))
+                        for view_spec in view_specs:
+                            self.get_view(view_spec, var_type).config.size = size
             else:
                 size = auto_size_to_col(len(self._active_configs))
                 for config in self._active_configs.values():
                     config.size = size
         else:
-            # uniform size
+            # Apply a uniform size to all active views.
             for config in self._active_configs.values():
                 config.size = COL_SIZE_LOOKUP[n_cols]
 
@@ -521,28 +480,19 @@ class ViewManager(TrameComponent):
 
         self._last_vars = variables
 
-        # Create UI based on variables
+        # Create UI based on the selected variables.
         self.state.swap_groups = {}
-        # Build a lookup from type name to color from state.variable_types
+        # Build a lookup from variable type to the matching group border color.
         type_to_color = {vt["name"]: vt["color"] for vt in self.state.variable_types}
         with DivLayout(self.server, template_name="auto_layout") as self.ui:
             if self.state.layout_grouped:
                 with v3.VCol(classes="pa-1"):
-                    for var_type in variables.keys():
-                        var_names = variables[var_type]
-                        total_size = len(var_names)
-                        print(total_size, var_names, var_type)
-
-                        if total_size == 0:
-                            continue
-
+                    for var_type, var_names in variables.items():
                         for var_name in var_names:
-                            # Define all possible comparison types
-                            all_comp_types = ["ctrl", "test", "diff", "comp1", "comp2"]
-                            # Build the full list of comparisons
-                            var_comps = [f"{var_name}_{comp_type}" for comp_type in all_comp_types]
+                            view_specs = self.get_view_specs(var_name)
+                            if not view_specs:
+                                continue
 
-                            # Look up color from variable_types to match chip colors
                             border_color = type_to_color.get(str(var_type), "primary")
                             with v3.VAlert(
                                 border="start",
@@ -550,89 +500,107 @@ class ViewManager(TrameComponent):
                                 variant="flat",
                                 border_color=border_color,
                             ):
+                                html.Div(
+                                    var_name,
+                                    classes="text-subtitle-2 font-weight-medium mb-1",
+                                )
                                 with v3.VRow(dense=True):
-                                    for comp_type, name in zip(all_comp_types, var_comps):
-                                        print("Creating view for", name)
-                                        view = self.get_view(name, var_type)
+                                    views_per_row = min(len(view_specs), 3)
+                                    group_cols = max(1, math.floor(12 / views_per_row))
+                                    group_names = [
+                                        view_spec["array_name"] for view_spec in view_specs
+                                    ]
+                                    for view_spec in view_specs:
+                                        view = self.get_view(view_spec, var_type)
                                         view.config.swap_group = sorted(
-                                            [n for n in var_comps if n != name]
+                                            [
+                                                name
+                                                for name in group_names
+                                                if name != view_spec["array_name"]
+                                            ]
                                         )
                                         with view.config.provide_as("config"):
-                                            # Only show column if it's in selected_columns
-                                            with v3.Template(v_if=f"selected_columns.includes('{comp_type}')"):
+                                            v3.VCol(
+                                                v_if="config.break_row",
+                                                cols=12,
+                                                classes="pa-0",
+                                                style=("`order: ${config.order};`",),
+                                            )
+                                            # For flow handling
+                                            with v3.Template(v_if="!config.size"):
                                                 v3.VCol(
-                                                    v_if="config.break_row",
-                                                    cols=12,
-                                                    classes="pa-0",
-                                                    style=("`order: ${config.order};`",),
+                                                    v_for="i in config.offset",
+                                                    key="i",
+                                                    style=("{ order: config.order }",),
                                                 )
-                                                # For flow handling
-                                                with v3.Template(v_if="!config.size"):
-                                                    v3.VCol(
-                                                        v_for="i in config.offset",
-                                                        key="i",
-                                                        style=("{ order: config.order }",),
-                                                    )
-                                                with v3.VCol(
-                                                    offset=("config.offset * config.size",),
-                                                    cols=("Math.floor(12 / selected_columns.length)",),
-                                                    # cols=("config.size",),
-                                                    style=("`order: ${config.order};`",),
-                                                ):
-                                                    client.ServerTemplate(name=view.name)
+                                            with v3.VCol(
+                                                offset=("config.offset * config.size",),
+                                                cols=group_cols,
+                                                style=("`order: ${config.order};`",),
+                                            ):
+                                                client.ServerTemplate(name=view.name)
             else:
-                all_names = [name for names in variables.values() for name in names]
+                all_names = []
+                for var_name_list in variables.values():
+                    for var_name in var_name_list:
+                        all_names.extend(
+                            [
+                                view_spec["array_name"]
+                                for view_spec in self.get_view_specs(var_name)
+                            ]
+                        )
                 with v3.VRow(dense=True, classes="pa-2"):
-                    for var_type in variables.keys():
-                        var_names = variables[var_type]
+                    for var_type, var_names in variables.items():
                         for name in var_names:
-                            view = self.get_view(name, var_type)
-                            view.config.swap_group = sorted(
-                                [n for n in all_names if n != name]
-                            )
-                            with view.config.provide_as("config"):
-                                v3.VCol(
-                                    v_if="config.break_row",
-                                    cols=12,
-                                    classes="pa-0",
-                                    style=("`order: ${config.order};`",),
+                            for view_spec in self.get_view_specs(name):
+                                view = self.get_view(view_spec, var_type)
+                                view.config.swap_group = sorted(
+                                    [
+                                        array_name
+                                        for array_name in all_names
+                                        if array_name != view_spec["array_name"]
+                                    ]
                                 )
-
-                                # For flow handling
-                                with v3.Template(v_if="!config.size"):
+                                with view.config.provide_as("config"):
                                     v3.VCol(
-                                        v_for="i in config.offset",
-                                        key="i",
-                                        style=("{ order: config.order }",),
+                                        v_if="config.break_row",
+                                        cols=12,
+                                        classes="pa-0",
+                                        style=("`order: ${config.order};`",),
                                     )
-                                with v3.VCol(
-                                    offset=(
-                                        "config.size ? config.offset * config.size : 0",
-                                    ),
-                                    cols=("config.size",),
-                                    style=("`order: ${config.order};`",),
-                                ):
-                                    client.ServerTemplate(name=view.name)
 
-        # Assign any missing order
+                                    # For flow handling
+                                    with v3.Template(v_if="!config.size"):
+                                        v3.VCol(
+                                            v_for="i in config.offset",
+                                            key="i",
+                                            style=("{ order: config.order }",),
+                                        )
+                                    with v3.VCol(
+                                        offset=(
+                                            "config.size ? config.offset * config.size : 0",
+                                        ),
+                                        cols=("config.size",),
+                                        style=("`order: ${config.order};`",),
+                                    ):
+                                        client.ServerTemplate(name=view.name)
+
+        # Assign any missing order.
         self._active_configs = {}
         existed_order = set()
         order_max = 0
         orders_to_update = []
-        for var_type in variables.keys():
-            var_names = variables[var_type]
+        for var_type, var_names in variables.items():
             for var_name in var_names:
-                # Define all possible comparison types
-                all_comp_types = ["ctrl", "test", "diff", "comp1", "comp2"]
-                # Build the full list of comparisons
-                var_comps = [f"{var_name}_{comp_type}" for comp_type in all_comp_types]
-
-                for name in var_comps:
-                    config = self.get_view(name, var_type).config
+                for view_spec in self.get_view_specs(var_name):
+                    config = self.get_view(view_spec, var_type).config
+                    name = view_spec["array_name"]
                     self._active_configs[name] = config
                     if config.order:
                         order_max = max(order_max, config.order)
-                        assert config.order not in existed_order, "Order already assigned"
+                        assert (
+                            config.order not in existed_order
+                        ), "Order already assigned"
                         existed_order.add(config.order)
                     else:
                         orders_to_update.append(config)

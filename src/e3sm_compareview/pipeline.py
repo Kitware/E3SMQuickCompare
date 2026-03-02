@@ -3,7 +3,9 @@ import json
 import os
 
 import e3sm_quickview
+from paraview import simple
 
+from e3sm_compareview.comparison import COMPARISON_MODES
 
 from paraview.simple import (
     FindSource,
@@ -38,21 +40,23 @@ class EAMVisSource:
         # and the data is available
         self.valid = False
 
-        self.ctrl_file = None
-        self.test_file = None
         self.conn_file = None
+        self.simulation_files = []
+        self.simulation_configs = []
 
         # List of all available variables
         self.varmeta = None
         self.dimmeta = None
         self.slicing = defaultdict(int)
 
-        self.ctrl_data = None
-        self.test_data = None
+        self.data_readers = []
         self.globe = None
         self.projection = "Cyl. Equidistant"
         self.timestamps = []
         self.center = 0.0
+        self.variable_view_specs = {}
+        self.array_metadata = {}
+        self.loaded_variables = []
 
         self.prog_filter = None
         self.atmos_extract = None
@@ -158,78 +162,203 @@ class EAMVisSource:
     def UpdateSlicing(self, dimension, slice):
         if self.slicing.get(dimension) == slice:
             return
-        else:
-            self.slicing[dimension] = slice
-            if self.ctrl_data is not None and self.test_data is not None:
-                x = json.dumps(self.slicing)
-                self.ctrl_data.Slicing = x
-                self.test_data.Slicing = x
+        self.slicing[dimension] = slice
+        if self.data_readers:
+            slicing_state = json.dumps(self.slicing)
+            for reader in self.data_readers:
+                reader.Slicing = slicing_state
 
-    def Update(self, ctrl_file, test_file, conn_file, variables=[], force_reload=False):
-        # Check if we need to reload
-        if (
-            not force_reload
-            and self.ctrl_file == ctrl_file
-            and self.test_file == test_file
-            and self.conn_file == conn_file
-        ):
+    def _clear_readers(self):
+        for reader in self.data_readers:
+            try:
+                simple.Delete(reader)
+            except Exception:
+                pass
+        self.data_readers = []
+
+    def _clear_derived_state(self):
+        # Clear metadata and derived ParaView outputs tied to the current inputs.
+        self.valid = False
+        self.timestamps = []
+        self.variable_view_specs = {}
+        self.array_metadata = {}
+        self.views = {}
+
+    def _create_reader(self, index, file_path):
+        reader = EAMSliceDataReader(
+            registrationName=f"AtmosReader{index}",
+            ConnectivityFile=self.conn_file,
+            DataFile=file_path,
+        )
+        vtk_obj = reader.GetClientSideObject()
+        vtk_obj.AddObserver("ErrorEvent", self.observer)
+        vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
+        return reader
+
+    def _configure_readers(self):
+        slicing_state = json.dumps(self.slicing)
+        for reader in self.data_readers:
+            reader.Slicing = slicing_state
+            reader.Variables = self.loaded_variables
+
+    def _update_varmeta(self):
+        reader_varmeta = []
+        for index, reader in enumerate(self.data_readers):
+            vtk_obj = reader.GetClientSideObject()
+            if index == 0:
+                self.dimmeta = vtk_obj.GetDimensions()
+            reader_varmeta.append(vtk_obj.GetVariables())
+
+        if not reader_varmeta:
+            self.varmeta = {}
+            return
+
+        common_keys = set(reader_varmeta[0])
+        for metadata in reader_varmeta[1:]:
+            common_keys &= set(metadata)
+
+        self.varmeta = {
+            key: reader_varmeta[0][key]
+            for key in reader_varmeta[0]
+            if key in common_keys
+        }
+
+        for dim in self.dimmeta.keys():
+            self.slicing.setdefault(dim, 0)
+
+    @staticmethod
+    def control_array_name(var_name):
+        return f"{var_name}__control"
+
+    @staticmethod
+    def comparison_array_name(var_name, comparison_mode, index):
+        return f"{var_name}__{comparison_mode}__{index}"
+
+    @staticmethod
+    def _normalize_timestamps(timestep_values):
+        if isinstance(timestep_values, (list, tuple)):
+            return list(timestep_values)
+        if hasattr(timestep_values, "__iter__") and not isinstance(timestep_values, str):
+            return list(timestep_values)
+        return [timestep_values] if timestep_values is not None else []
+
+    def _build_programmable_filter_script(self):
+        # Emit the control array plus one comparison array per selected simulation.
+        return f"""vars = {self.loaded_variables}
+for var in vars:
+    ctrl = inputs[0].CellData[f"{{var}}"]
+
+    output.CellData.append(ctrl, f'{{var}}')
+    output.CellData.append(ctrl, f'{{var}}__control')
+    for sim_index, sim_input in enumerate(inputs[1:], start=1):
+        sim = sim_input.CellData[f"{{var}}"]
+        diff = sim - ctrl
+        comp1 = diff / ctrl
+        comp2 = (2 * diff) / (sim + ctrl)
+        output.CellData.append(diff, f'{{var}}__diff__{{sim_index}}')
+        output.CellData.append(comp1, f'{{var}}__comp1__{{sim_index}}')
+        output.CellData.append(comp2, f'{{var}}__comp2__{{sim_index}}')
+
+output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.compute.extract_avgs
+"""
+
+    def _build_view_specs(self, variables):
+        self.variable_view_specs = {}
+        self.array_metadata = {}
+        if not self.simulation_configs:
+            return
+
+        control = self.simulation_configs[0]
+        for var_name in variables:
+            per_mode_specs = {}
+            control_array_name = self.control_array_name(var_name)
+            control_metadata = {
+                "array_name": control_array_name,
+                "base_variable": var_name,
+                "role": "control",
+                "label": control["label"],
+                "path": control["path"],
+                "index": 0,
+            }
+            self.array_metadata[control_array_name] = control_metadata
+
+            for comparison_mode in COMPARISON_MODES:
+                specs = [{**control_metadata, "comparison_mode": comparison_mode}]
+
+                for index, simulation in enumerate(self.simulation_configs[1:], start=1):
+                    comparison_spec = {
+                        "array_name": self.comparison_array_name(
+                            var_name, comparison_mode, index
+                        ),
+                        "base_variable": var_name,
+                        "role": comparison_mode,
+                        "comparison_mode": comparison_mode,
+                        "label": simulation["label"],
+                        "path": simulation["path"],
+                        "index": index,
+                    }
+                    specs.append(comparison_spec)
+                    self.array_metadata[comparison_spec["array_name"]] = comparison_spec
+
+                per_mode_specs[comparison_mode] = specs
+
+            self.variable_view_specs[var_name] = per_mode_specs
+
+    def get_view_specs(self, variable_name, comparison_mode="diff"):
+        return self.variable_view_specs.get(variable_name, {}).get(comparison_mode, [])
+
+    def get_array_metadata(self, array_name):
+        return self.array_metadata.get(array_name)
+
+    def Update(self, simulation_configs, conn_file, variables=None, force_reload=False):
+        next_loaded_variables = (
+            self.loaded_variables if variables is None else list(variables)
+        )
+        simulation_files = [entry["path"] for entry in simulation_configs]
+        if not simulation_files:
+            self.loaded_variables = next_loaded_variables
+            self.simulation_files = []
+            self.simulation_configs = []
+            self.conn_file = conn_file
+            self._clear_derived_state()
             return self.valid
 
-        # Store the file paths
-        self.ctrl_file = ctrl_file
-        self.test_file = test_file
+        # Check if we need to rebuild the ParaView pipeline at all.
+        if (
+            not force_reload
+            and self.simulation_files == simulation_files
+            and self.conn_file == conn_file
+            and self.loaded_variables == next_loaded_variables
+        ):
+            self.simulation_configs = simulation_configs
+            self._build_view_specs(self.loaded_variables)
+            return self.valid
+
+        # Store the active simulation set before (re)configuring readers.
+        self.loaded_variables = next_loaded_variables
+        self.simulation_files = simulation_files
+        self.simulation_configs = simulation_configs
         self.conn_file = conn_file
 
-        if self.ctrl_data is None or self.test_data is None:
-            ctrl_data = EAMSliceDataReader(
-                registrationName="AtmosReader",
-                ConnectivityFile=self.conn_file,
-                DataFile=self.ctrl_file,
-            )
-            self.ctrl_data = ctrl_data
-            vtk_obj = ctrl_data.GetClientSideObject()
-            vtk_obj.AddObserver("ErrorEvent", self.observer)
-            vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
-            ctrl_varmeta = vtk_obj.GetVariables()
-            # self.observer.clear()
-
-            test_data = EAMSliceDataReader(
-                registrationName="AtmosReader2",
-                ConnectivityFile=self.conn_file,
-                DataFile=self.test_file,
-            )
-            self.test_data = test_data
-            vtk_obj = test_data.GetClientSideObject()
-            vtk_obj.AddObserver("ErrorEvent", self.observer)
-            vtk_obj.GetExecutive().AddObserver("ErrorEvent", self.observer)
-            test_varmeta = vtk_obj.GetVariables()
-            self.dimmeta = vtk_obj.GetDimensions()
-            self.varmeta = {
-                key: val
-                for key, val in ctrl_varmeta.items()
-                if key in test_varmeta
-            }
-
-
-            for dim in self.dimmeta.keys():
-                self.slicing[dim] = 0
-
-            self.observer.clear()
-
+        if len(self.data_readers) != len(simulation_files):
+            self._clear_readers()
+            self.data_readers = [
+                self._create_reader(index, file_path)
+                for index, file_path in enumerate(simulation_files)
+            ]
         else:
-            self.ctrl_data.DataFile = self.ctrl_file
-            self.ctrl_data.ConnectivityFile = self.conn_file
-            # self.observer.clear()
+            for reader, file_path in zip(self.data_readers, simulation_files):
+                reader.DataFile = file_path
+                reader.ConnectivityFile = self.conn_file
 
-            self.test_data.DataFile = self.test_file
-            self.test_data.ConnectivityFile = self.conn_file
-            self.observer.clear()
-
+        self._update_varmeta()
+        self._configure_readers()
+        self.observer.clear()
 
         try:
-            # Update pipeline and force view refresh
-            self.ctrl_data.UpdatePipeline(time=0.0)
-            self.test_data.UpdatePipeline(time=0.0)
+            # Update the raw readers before rebuilding derived filters and views.
+            for reader in self.data_readers:
+                reader.UpdatePipeline(time=0.0)
             if self.observer.error_occurred:
                 raise RuntimeError(
                     "Error occurred in UpdatePipeline. "
@@ -237,48 +366,21 @@ class EAMVisSource:
                     "and are compatible"
                 )
 
-            # Ensure TimestepValues is always a list
-            timestep_values = self.ctrl_data.TimestepValues
-            if isinstance(timestep_values, (list, tuple)):
-                self.timestamps = list(timestep_values)
-            elif hasattr(timestep_values, "__iter__") and not isinstance(
-                timestep_values, str
-            ):
-                # Handle numpy arrays or other iterables
-                self.timestamps = list(timestep_values)
-            else:
-                # Single value - wrap in a list
-                self.timestamps = (
-                    [timestep_values] if timestep_values is not None else []
-                )
+            # Ensure TimestepValues is always a plain Python list.
+            timestep_values = self.data_readers[0].TimestepValues
+            self.timestamps = self._normalize_timestamps(timestep_values)
 
-            print("Data pre-script", self.ctrl_data, self.test_data)
+            self._build_view_specs(self.loaded_variables)
 
-            script = f"vars = {variables}\n"
-            script += """
-for var in vars:
-    ctrl = inputs[0].CellData[f"{var}"]
-    test = inputs[1].CellData[f"{var}"]
-
-    diff = test - ctrl
-    comp1 = diff / ctrl
-    comp2 = (2 * diff) / (test + ctrl)
-
-    output.CellData.append(ctrl, f'{var}')
-    output.CellData.append(ctrl, f'{var}_ctrl')
-    output.CellData.append(test, f'{var}_test')
-    output.CellData.append(diff, f'{var}_diff')
-    output.CellData.append(comp1, f'{var}_comp1')
-    output.CellData.append(comp2, f'{var}_comp2')
-
-output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.compute.extract_avgs
-"""
-            print("ProgrammableFilter script:\n", script, end='')
-            self.prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter', Input=[self.ctrl_data, self.test_data])
+            script = self._build_programmable_filter_script()
+            self.prog_filter = ProgrammableFilter(
+                registrationName="ProgrammableFilter",
+                Input=self.data_readers,
+            )
             self.prog_filter.Script = script
-            self.prog_filter.RequestInformationScript = ''
-            self.prog_filter.RequestUpdateExtentScript = ''
-            self.prog_filter.PythonPath = ''
+            self.prog_filter.RequestInformationScript = ""
+            self.prog_filter.RequestUpdateExtentScript = ""
+            self.prog_filter.PythonPath = ""
 
 
             # Step 1: Extract and transform atmospheric data
@@ -352,15 +454,16 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
             # print("Error in UpdatePipeline :", e)
             # traceback.print_stack()
             print(e)
-            self.valid = False
+            self._clear_derived_state()
 
         return self.valid
 
     def LoadVariables(self, vars):
         if not self.valid:
             return
-        self.ctrl_data.Variables = vars
-        self.test_data.Variables = vars
+        self.loaded_variables = list(vars)
+        for reader in self.data_readers:
+            reader.Variables = vars
 
 
 if __name__ == "__main__":

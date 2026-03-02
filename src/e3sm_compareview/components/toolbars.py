@@ -5,23 +5,24 @@ from trame.decorators import change
 from trame.widgets import client, html
 from trame.widgets import vuetify3 as v3
 
+from e3sm_compareview.comparison import COMPARISON_MODES
 from e3sm_quickview.utils import js
 
 DENSITY = {
     "adjust-layout": "compact",
+    "comparison-controls": "compact",
     "adjust-databounds": "default",
     "select-slice-time": "default",
     "animation-controls": "compact",
 }
 
 SIZES = {
-    "adjust-layout": 98,  # Two rows: 49 + 49
+    "adjust-layout": 49,
+    "comparison-controls": 49,
     "adjust-databounds": 65,
     "select-slice-time": 70,
     "animation-controls": 49,
 }
-
-VALUES = list(DENSITY.keys())
 
 DEFAULT_STYLES = {
     "color": "white",
@@ -189,31 +190,6 @@ class Layout(html.Div):
                                         classes="ml-6 mt-n1",
                                     )
 
-            # Second row - column toggle buttons
-            with v3.VToolbar(density="compact", color="white", classes="border-b-thin"):
-                v3.VLabel("Columns:", classes="text-subtitle-2 px-4")
-                for comp_type in ["ctrl", "test", "diff", "comp1", "comp2"]:
-                    v3.VBtn(
-                        comp_type.upper(),
-                        size="small",
-                        variant=("selected_columns.includes('{0}') ? 'flat' : 'outlined'".format(comp_type),),
-                        color=("selected_columns.includes('{0}') ? 'primary' : 'default'".format(comp_type),),
-                        classes="mx-1",
-                        click=(
-                            f"selected_columns.includes('{comp_type}') ? "
-                            f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "
-                            f"selected_columns = [...selected_columns, '{comp_type}']"
-                        ),
-                    )
-                v3.VSpacer()
-                v3.VBtn(
-                    "Show All",
-                    size="small",
-                    variant="text",
-                    click="selected_columns = ['ctrl', 'test', 'diff', 'comp1', 'comp2']",
-                )
-
-
 class Cropping(v3.VToolbar):
     def __init__(self):
         super().__init__(**to_kwargs("adjust-databounds"))
@@ -259,6 +235,29 @@ class Cropping(v3.VToolbar):
                         density="compact",
                         hide_details=True,
                     )
+
+
+class ComparisonMode(v3.VToolbar):
+    def __init__(self):
+        super().__init__(**to_kwargs("comparison-controls"))
+
+        with self:
+            v3.VIcon("mdi-compare-horizontal", classes="pl-6 opacity-50")
+            v3.VLabel("Comparison", classes="text-subtitle-2 px-4")
+            for mode in COMPARISON_MODES:
+                v3.VBtn(
+                    mode.upper(),
+                    size="small",
+                    variant=(f"comparison_mode === '{mode}' ? 'flat' : 'outlined'",),
+                    color=(f"comparison_mode === '{mode}' ? 'primary' : 'default'",),
+                    classes="mx-1 text-none",
+                    click=f"comparison_mode = '{mode}'",
+                )
+            v3.VSpacer()
+            html.Div(
+                "{{ Math.max(0, simulation_configs.filter(sim => sim.path !== control_simulation_file && sim.include).length) }} comparisons",
+                classes="text-caption mr-4",
+            )
 
 
 class DataSelection(html.Div):
