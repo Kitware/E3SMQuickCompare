@@ -165,7 +165,8 @@ class VariableView(TrameComponent):
             self.lut.MapControlPointsToLogSpace()
             self.lut.UseLogScale = 1
 
-        self.lut.NumberOfTableValues = n_colors
+        if n_colors is not None:
+            self.lut.NumberOfTableValues = n_colors
 
         self.config.lut_img = lut_to_img(self.lut)
 
