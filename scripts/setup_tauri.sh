@@ -19,6 +19,7 @@ python -m PyInstaller --clean --noconfirm \
         --collect-all pyproj \
         --collect-all netCDF4 \
         --collect-all paraview \
+        --collect-all e3sm_quickview \
         --collect-all e3sm_compareview \
         --hidden-import pkgutil \
         --add-binary="$PVPYTHON_PATH:."  \
