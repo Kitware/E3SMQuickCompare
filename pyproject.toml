@@ -62,9 +62,11 @@ packages = [
 
 [project.scripts]
 compareview = "e3sm_compareview.app:main"
+quickcompare = "e3sm_compareview.app:main"
 
 [project.entry-points."jupyter_serverproxy_servers"]
 compareview = "e3sm_compareview.jupyter:setup_compareview"
+quickcompare = "e3sm_compareview.jupyter:setup_quickcompare"
 
 [tool.ruff.lint.per-file-ignores]
 "e3sm_compareview/pipeline.py" = ["F821"]  # Plugin classes loaded dynamically

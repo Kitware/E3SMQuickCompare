@@ -12,10 +12,10 @@ from trame.widgets import trame as tw
 from trame.widgets import vuetify3 as v3
 
 from e3sm_compareview.assets import ASSETS
-from e3sm_compareview.components import drawers, file_browser, toolbars
+from e3sm_compareview.components import doc, drawers, file_browser, toolbars
 from e3sm_compareview.pipeline import EAMVisSource
 from e3sm_compareview.view_manager import ViewManager
-from e3sm_quickview.components import css, dialogs, doc
+from e3sm_quickview.components import css, dialogs
 from e3sm_quickview import module as qv_module
 from e3sm_quickview.utils import cli, compute
 
@@ -36,7 +36,7 @@ class EAMApp(TrameApp):
         # Initial UI state
         self.state.update(
             {
-                "trame__title": "CompareView",
+                "trame__title": "QuickCompare",
                 "trame__favicon": ASSETS.icon,
                 "is_tauri": False,
                 "animation_play": False,
