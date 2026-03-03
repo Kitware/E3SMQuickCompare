@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v1.2.2 (2026-03-03)
+
+### Bug Fixes
+
+- **NERSC**: Improve jupyter/nersc usage
+  ([`cc7a7e5`](https://github.com/Kitware/E3SMQuickCompare/commit/cc7a7e55ec4d3b372822e1357c816735edd26176))
+
+### Chores
+
+- Cleanup pyproject
+  ([`2a3fa2e`](https://github.com/Kitware/E3SMQuickCompare/commit/2a3fa2e2531d0be5be2f12d93c5d84e5ccb2073f))
+
+### Refactoring
+
+- **name**: Rename compareview to quickcompare
+  ([`718824d`](https://github.com/Kitware/E3SMQuickCompare/commit/718824ddd986c2171366f695c8eed9505e888c56))
+
+
 ## v1.0.0 (2026-01-26)
 
 - Initial Release
