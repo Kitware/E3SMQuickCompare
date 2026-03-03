@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.3.5 (2026-03-03)
+
+### Bug Fixes
+
+- **label**: Improve range label formating
+  ([`4fedb2e`](https://github.com/Kitware/QuickView/commit/4fedb2e67a0fd07c741f229b4d235a96c53937f2))
+
+- **lut**: Allow number of color to be deleted
+  ([`eebb926`](https://github.com/Kitware/QuickView/commit/eebb9269e9556ae38a63803686484947924ac73e))
+
+
 ## v1.3.4 (2026-02-24)
 
 ### Bug Fixes
