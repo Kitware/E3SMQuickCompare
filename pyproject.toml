@@ -1,6 +1,6 @@
 [project]
 name = "e3sm-compareview"
-version = "1.2.0"
+version = "1.2.1"
 description = "An application to explore/analyze data for atmosphere component for E3SM"
 authors = [
     {name = "Kitware Inc."},
