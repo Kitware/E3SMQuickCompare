@@ -1,8 +1,8 @@
-"""Jupyter integration for CompareView via jupyter-server-proxy."""
+"""Jupyter integration for QuickCompare via jupyter-server-proxy."""
 
-from .proxy import setup_compareview
+from .proxy import setup_compareview, setup_quickcompare
 
 # Backward compatibility alias.
 setup_quickview = setup_compareview
 
-__all__ = ["setup_compareview", "setup_quickview"]
+__all__ = ["setup_compareview", "setup_quickcompare", "setup_quickview"]

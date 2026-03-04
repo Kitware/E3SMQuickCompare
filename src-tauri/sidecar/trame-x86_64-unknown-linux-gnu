@@ -1,12 +1,16 @@
 #!/bin/bash
 basedir=$(cd "$(dirname "$0")/../lib" && pwd)
 
-if [ -d "$basedir/compareview" ]; then
+if [ -d "$basedir/quickcompare" ]; then
+    rootdir="$basedir/quickcompare"
+elif [ -d "$basedir/compareview" ]; then
     rootdir="$basedir/compareview"
+elif [ -d "$basedir/quick-compare" ]; then
+    rootdir="$basedir/quick-compare"
 elif [ -d "$basedir/compare-view" ]; then
     rootdir="$basedir/compare-view"
 else
-    echo "Error: Could not find compareview or compare-view directory in $basedir" >&2
+    echo "Error: Could not find quickcompare, quick-compare, compareview, or compare-view directory in $basedir" >&2
     exit 1
 fi
 

@@ -13,7 +13,7 @@ from e3sm_quickview.utils import constants, js
 class AppLogo(v3.VTooltip):
     def __init__(self, compact="compact_drawer"):
         super().__init__(
-            text=f"CompareView {app_version}",
+            text=f"QuickCompare {app_version}",
             disabled=(f"!{compact}",),
         )
         with self:
