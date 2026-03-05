@@ -70,6 +70,15 @@ class SimulationSelection(v3.VNavigationDrawer):
                         "{{ simulation_configs.length }} loaded",
                         classes="text-caption mr-4",
                     )
+                with html.Div(classes="px-3 py-2 border-b-thin"):
+                    with v3.VBtnToggle(
+                        v_model=("comparison_mode", "multi-sim"),
+                        mandatory=True,
+                        density="compact",
+                        divided=True,
+                    ):
+                        v3.VBtn("Two Sim", value="two-sim", classes="text-none")
+                        v3.VBtn("Multi Sim", value="multi-sim", classes="text-none")
 
                 with html.Div(v_if="simulation_configs.length === 0", classes="pa-4"):
                     html.Div(
@@ -113,7 +122,7 @@ class SimulationSelection(v3.VNavigationDrawer):
                                             update_modelValue="""
 simulation_configs = simulation_configs.map((sim) =>
   sim.path === entry.path ? ({ ...sim, label: $event }) : sim
-)
+);
 """,
                                             label="Label",
                                             density="compact",
@@ -132,30 +141,68 @@ simulation_configs = simulation_configs.map((sim) =>
                                                 "control_simulation_file === entry.path ? 'primary' : 'default'",
                                             ),
                                             classes="text-none w-100",
-                                            style="min-width: 100px;",
+                                            style="min-width: 112px;",
                                             size="small",
-                                            click="control_simulation_file = entry.path",
+                                            click=(
+                                                self._on_control_selected,
+                                                "[entry.path]",
+                                            ),
                                         )
                                     with v3.VCol(cols=6, md=3):
-                                        v3.VCheckbox(
-                                            model_value=(
-                                                "control_simulation_file === entry.path ? true : entry.include",
-                                            ),
-                                            update_modelValue="""
+                                        with v3.Template(v_if="comparison_mode === 'multi-sim'"):
+                                            v3.VCheckbox(
+                                                model_value=(
+                                                    "control_simulation_file === entry.path ? true : entry.include",
+                                                ),
+                                                update_modelValue="""
 simulation_configs = simulation_configs.map((sim) =>
   sim.path === entry.path ? ({ ...sim, include: !!$event }) : sim
-)
+);
 """,
-                                            label="Include",
-                                            density="compact",
-                                            hide_details=True,
-                                            disabled=(
-                                                "control_simulation_file === entry.path",
-                                            ),
-                                        )
+                                                label="Include",
+                                                density="compact",
+                                                hide_details=True,
+                                                disabled=(
+                                                    "control_simulation_file === entry.path",
+                                                ),
+                                            )
+                                        with v3.Template(v_else=True):
+                                            v3.VBtn(
+                                                text=(
+                                                    "two_sim_test_simulation_file === entry.path ? 'Test' : 'Set test'",
+                                                ),
+                                                variant=(
+                                                    "two_sim_test_simulation_file === entry.path ? 'flat' : 'outlined'",
+                                                ),
+                                                color=(
+                                                    "two_sim_test_simulation_file === entry.path ? 'primary' : 'default'",
+                                                ),
+                                                classes="text-none w-100",
+                                                style="min-width: 112px;",
+                                                size="small",
+                                                disabled=(
+                                                    "control_simulation_file === entry.path",
+                                                ),
+                                                click="two_sim_test_simulation_file = entry.path",
+                                            )
                                 html.Div(
                                     "{{ entry.path }}",
                                     classes="text-caption text-medium-emphasis mt-2",
                                     style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;",
                                     title=("entry.path",),
                                 )
+
+    def _on_control_selected(self, control_path, **_):
+        self.state.control_simulation_file = control_path
+        if self.state.comparison_mode != "two-sim":
+            return
+        if self.state.two_sim_test_simulation_file != control_path:
+            return
+
+        fallback = control_path
+        for sim in self.state.simulation_configs or []:
+            sim_path = sim.get("path")
+            if sim_path and sim_path != control_path:
+                fallback = sim_path
+                break
+        self.state.two_sim_test_simulation_file = fallback

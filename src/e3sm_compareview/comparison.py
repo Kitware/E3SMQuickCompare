@@ -1,7 +1,14 @@
 import re
 from pathlib import Path
 
-COMPARISON_MODES = ("diff", "comp1", "comp2")
+COMPARISON_TYPES = ("diff", "comp1", "comp2")
+COMPARISON_MODES = ("two-sim", "multi-sim")
+
+
+def normalize_comparison_mode(mode):
+    if mode in COMPARISON_MODES:
+        return mode
+    return "multi-sim"
 
 
 def default_simulation_label(file_path):
@@ -71,9 +78,33 @@ def build_simulation_configs(simulation_files, existing_configs, control_file):
     return configs, control_file
 
 
-def comparison_signature_for(configs, control_file):
+def normalize_two_sim_target(configs, control_file, two_sim_target_file):
+    configs = configs or []
+    if not configs:
+        return ""
+
+    valid_paths = [entry.get("path") for entry in configs if entry.get("path")]
+    if not valid_paths:
+        return ""
+
+    if two_sim_target_file in valid_paths and two_sim_target_file != control_file:
+        return two_sim_target_file
+
+    for path in valid_paths:
+        if path != control_file:
+            return path
+
+    return control_file
+
+
+def comparison_signature_for(
+    configs, control_file, comparison_mode="multi-sim", two_sim_target_file=""
+):
+    comparison_mode = normalize_comparison_mode(comparison_mode)
     return (
+        comparison_mode,
         control_file,
+        normalize_two_sim_target(configs, control_file, two_sim_target_file),
         tuple(
             (entry.get("path"), bool(entry.get("include", True)))
             for entry in (configs or [])
@@ -87,7 +118,10 @@ def label_signature_for(configs):
     )
 
 
-def active_simulation_configs(configs, control_file):
+def active_simulation_configs(
+    configs, control_file, comparison_mode="multi-sim", two_sim_target_file=""
+):
+    comparison_mode = normalize_comparison_mode(comparison_mode)
     configs = configs or []
     if not configs:
         return []
@@ -96,11 +130,35 @@ def active_simulation_configs(configs, control_file):
     control_file = control_file or configs[0]["path"]
     control_config = configs_by_path.get(control_file, configs[0])
     control_index = next(
-        (index for index, entry in enumerate(configs) if entry["path"] == control_config["path"]),
+        (
+            index
+            for index, entry in enumerate(configs)
+            if entry["path"] == control_config["path"]
+        ),
         0,
     )
 
     active = [{**control_config, "role": "control", "source_index": control_index}]
+
+    if comparison_mode == "two-sim":
+        target_path = normalize_two_sim_target(
+            configs, control_config["path"], two_sim_target_file
+        )
+        target_config = configs_by_path.get(target_path)
+        if target_config and target_config["path"] != control_config["path"]:
+            target_index = next(
+                (
+                    index
+                    for index, entry in enumerate(configs)
+                    if entry["path"] == target_config["path"]
+                ),
+                0,
+            )
+            active.append(
+                {**target_config, "role": "comparison", "source_index": target_index}
+            )
+        return active
+
     active.extend(
         {**entry, "role": "comparison", "source_index": index}
         for index, entry in enumerate(configs)

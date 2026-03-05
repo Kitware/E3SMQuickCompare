@@ -17,6 +17,8 @@ from e3sm_compareview.comparison import (
     build_simulation_configs,
     comparison_signature_for,
     label_signature_for,
+    normalize_comparison_mode,
+    normalize_two_sim_target,
 )
 from e3sm_compareview.components import doc, drawers, file_browser, toolbars
 from e3sm_compareview.pipeline import EAMVisSource
@@ -65,7 +67,10 @@ class EAMApp(TrameApp):
                 # Simulation comparison selection
                 "simulation_configs": [],
                 "control_simulation_file": "",
-                "comparison_mode": "diff",
+                "two_sim_test_simulation_file": "",
+                "comparison_mode": "multi-sim",
+                "comparison_type": "diff",
+                "selected_columns": ["ctrl", "test", "diff", "comp1", "comp2"],
                 "dragged_simulation_path": "",
             }
         )
@@ -257,8 +262,23 @@ class EAMApp(TrameApp):
     @property
     def active_simulation_configs(self):
         return active_simulation_configs(
-            self.state.simulation_configs, self.state.control_simulation_file
+            self.state.simulation_configs,
+            self.state.control_simulation_file,
+            self.state.comparison_mode,
+            self.state.two_sim_test_simulation_file,
         )
+
+    def _ensure_two_sim_target(self):
+        if self.state.comparison_mode != "two-sim":
+            return
+
+        target_path = normalize_two_sim_target(
+            self.state.simulation_configs,
+            self.state.control_simulation_file,
+            self.state.two_sim_test_simulation_file,
+        )
+        if target_path != self.state.two_sim_test_simulation_file:
+            self.state.two_sim_test_simulation_file = target_path
 
     def _selected_variables_to_show(self):
         vars_to_show = self.selected_variables
@@ -338,7 +358,10 @@ class EAMApp(TrameApp):
         }
         state_content["comparisons"] = {
             "control": self.state.control_simulation_file,
+            "target": self.state.two_sim_test_simulation_file,
             "mode": self.state.comparison_mode,
+            "type": self.state.comparison_type,
+            "columns": self.state.selected_columns,
             "simulations": self.state.simulation_configs,
         }
         state_content["variables-selection"] = self.state.variables_selected
@@ -364,7 +387,10 @@ class EAMApp(TrameApp):
         for view_type, var_names in active_variables.items():
             for var_name in var_names:
                 for view_spec in self.source.get_view_specs(
-                    var_name, self.state.comparison_mode
+                    var_name,
+                    self.state.comparison_mode,
+                    self.state.comparison_type,
+                    self.state.selected_columns,
                 ):
                     config = self.view_manager.get_view(view_spec, view_type).config
                     views_to_export.append(
@@ -430,7 +456,28 @@ class EAMApp(TrameApp):
             self.state.control_simulation_file = comparisons.get(
                 "control", self.state.control_simulation_file
             )
-            self.state.comparison_mode = comparisons.get("mode", "diff")
+            self.state.two_sim_test_simulation_file = comparisons.get(
+                "target", self.state.two_sim_test_simulation_file
+            )
+            raw_mode = comparisons.get("mode")
+            if raw_mode in ("two-sim", "multi-sim"):
+                self.state.comparison_mode = raw_mode
+            else:
+                self.state.comparison_mode = comparisons.get(
+                    "strategy", self.state.comparison_mode
+                )
+
+            raw_type = comparisons.get("type")
+            if raw_type in ("diff", "comp1", "comp2"):
+                self.state.comparison_type = raw_type
+            else:
+                legacy_type = comparisons.get("mode")
+                if legacy_type in ("diff", "comp1", "comp2"):
+                    self.state.comparison_type = legacy_type
+            self.state.selected_columns = comparisons.get(
+                "columns", self.state.selected_columns
+            )
+            self._ensure_two_sim_target()
 
         # Load variables
         self.state.variables_selected = state_content["variables-selection"]
@@ -477,6 +524,7 @@ class EAMApp(TrameApp):
         )
         self.state.simulation_configs = simulation_configs
         self.state.control_simulation_file = control_file
+        self._ensure_two_sim_target()
 
         await asyncio.sleep(0.1)
         # Use the selected simulations from the UI state.
@@ -584,21 +632,52 @@ class EAMApp(TrameApp):
     def _on_layout_change(self, **_):
         self._rebuild_active_layout()
 
-    @change("comparison_mode")
-    def _on_comparison_mode_change(self, **_):
-        if not self.state.variables_loaded:
+    @change("comparison_type")
+    def _on_comparison_type_change(self, **_):
+        if (
+            self.state.comparison_mode != "multi-sim"
+            or not self.state.variables_loaded
+        ):
             return
 
         self._rebuild_active_layout(update_color=True)
 
-    @change("simulation_configs", "control_simulation_file")
+    @change("comparison_mode")
+    def _on_comparison_mode_change(self, comparison_mode, **_):
+        normalized = normalize_comparison_mode(comparison_mode)
+        if normalized != comparison_mode:
+            self.state.comparison_mode = normalized
+            return
+
+        self.state.variables_selected = []
+        self.state.variables_loaded = False
+
+    @change("selected_columns")
+    def _on_selected_columns_change(self, **_):
+        if (
+            self.state.comparison_mode != "two-sim"
+            or not self.state.variables_loaded
+        ):
+            return
+        self._rebuild_active_layout(update_color=True)
+
+    @change(
+        "simulation_configs",
+        "control_simulation_file",
+        "comparison_mode",
+        "two_sim_test_simulation_file",
+    )
     def _on_simulation_selection_change(self, simulation_configs, **_):
         if simulation_configs:
             valid_paths = {entry["path"] for entry in simulation_configs}
             if self.state.control_simulation_file not in valid_paths:
                 self.state.control_simulation_file = simulation_configs[0]["path"]
+            self._ensure_two_sim_target()
         comparison_signature = comparison_signature_for(
-            simulation_configs, self.state.control_simulation_file
+            simulation_configs,
+            self.state.control_simulation_file,
+            self.state.comparison_mode,
+            self.state.two_sim_test_simulation_file,
         )
         label_signature = label_signature_for(simulation_configs)
 
@@ -610,6 +689,7 @@ class EAMApp(TrameApp):
 
         if comparison_changed:
             self._refresh_source_simulations()
+            self.view_manager.reset_view_orders(self.selected_variables)
             if self.state.variables_loaded and self._rebuild_active_layout(update_color=True):
                 return
             self.state.variables_loaded = False

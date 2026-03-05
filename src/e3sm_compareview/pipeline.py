@@ -5,7 +5,7 @@ import os
 import e3sm_quickview
 from paraview import simple
 
-from e3sm_compareview.comparison import COMPARISON_MODES
+from e3sm_compareview.comparison import COMPARISON_TYPES
 
 from paraview.simple import (
     FindSource,
@@ -231,8 +231,8 @@ class EAMVisSource:
         return f"{var_name}__control"
 
     @staticmethod
-    def comparison_array_name(var_name, comparison_mode, index):
-        return f"{var_name}__{comparison_mode}__{index}"
+    def comparison_array_name(var_name, comparison_type, index):
+        return f"{var_name}__{comparison_type}__{index}"
 
     @staticmethod
     def _normalize_timestamps(timestep_values):
@@ -252,6 +252,7 @@ for var in vars:
     output.CellData.append(ctrl, f'{{var}}__control')
     for sim_index, sim_input in enumerate(inputs[1:], start=1):
         sim = sim_input.CellData[f"{{var}}"]
+        output.CellData.append(sim, f'{{var}}__test__{{sim_index}}')
         diff = sim - ctrl
         comp1 = diff / ctrl
         comp2 = (2 * diff) / (sim + ctrl)
@@ -276,6 +277,7 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                 "array_name": control_array_name,
                 "base_variable": var_name,
                 "role": "control",
+                "metric": "raw",
                 "label": f'{control["label"]} (control)',
                 "path": control["path"],
                 "index": 0,
@@ -283,17 +285,32 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
             }
             self.array_metadata[control_array_name] = control_metadata
 
-            for comparison_mode in COMPARISON_MODES:
-                specs = [{**control_metadata, "comparison_mode": comparison_mode}]
+            two_sim_specs = {
+                "ctrl": {
+                    **control_metadata,
+                    "comparison_mode": "two-sim",
+                    "label": f"{var_name}_ctrl",
+                }
+            }
+            for comparison_type in COMPARISON_TYPES:
+                specs = [
+                    {
+                        **control_metadata,
+                        "comparison_mode": "multi-sim",
+                        "comparison_type": comparison_type,
+                    }
+                ]
 
                 for index, simulation in enumerate(self.simulation_configs[1:], start=1):
                     comparison_spec = {
                         "array_name": self.comparison_array_name(
-                            var_name, comparison_mode, index
+                            var_name, comparison_type, index
                         ),
                         "base_variable": var_name,
-                        "role": comparison_mode,
-                        "comparison_mode": comparison_mode,
+                        "role": comparison_type,
+                        "metric": comparison_type,
+                        "comparison_mode": "multi-sim",
+                        "comparison_type": comparison_type,
                         "label": simulation["label"],
                         "path": simulation["path"],
                         "index": index,
@@ -302,15 +319,71 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                     specs.append(comparison_spec)
                     self.array_metadata[comparison_spec["array_name"]] = comparison_spec
 
-                per_mode_specs[comparison_mode] = sorted(
+                per_mode_specs[comparison_type] = sorted(
                     specs,
                     key=lambda spec: spec.get("source_index", 0),
                 )
 
-            self.variable_view_specs[var_name] = per_mode_specs
+            if len(self.simulation_configs) > 1:
+                two_sim_target = self.simulation_configs[1]
+                test_spec = {
+                    "array_name": f"{var_name}__test__1",
+                    "base_variable": var_name,
+                    "role": "test",
+                    "metric": "raw",
+                    "label": f"{var_name}_test",
+                    "path": two_sim_target["path"],
+                    "index": 1,
+                    "source_index": two_sim_target.get("source_index", 1),
+                    "comparison_mode": "two-sim",
+                }
+                two_sim_specs["test"] = test_spec
+                self.array_metadata[test_spec["array_name"]] = test_spec
 
-    def get_view_specs(self, variable_name, comparison_mode="diff"):
-        return self.variable_view_specs.get(variable_name, {}).get(comparison_mode, [])
+                for comparison_type in COMPARISON_TYPES:
+                    two_sim_specs[comparison_type] = {
+                        "array_name": self.comparison_array_name(
+                            var_name, comparison_type, 1
+                        ),
+                        "base_variable": var_name,
+                        "role": comparison_type,
+                        "metric": comparison_type,
+                        "comparison_mode": "two-sim",
+                        "comparison_type": comparison_type,
+                        "label": f"{var_name}_{comparison_type}",
+                        "path": two_sim_target["path"],
+                        "index": 1,
+                        "source_index": two_sim_target.get("source_index", 1),
+                    }
+                    self.array_metadata[two_sim_specs[comparison_type]["array_name"]] = (
+                        two_sim_specs[comparison_type]
+                    )
+
+            self.variable_view_specs[var_name] = {
+                "multi-sim": per_mode_specs,
+                "two-sim": two_sim_specs,
+            }
+
+    def get_view_specs(
+        self,
+        variable_name,
+        comparison_mode="multi-sim",
+        comparison_type="diff",
+        selected_columns=None,
+    ):
+        entry = self.variable_view_specs.get(variable_name, {})
+        if comparison_mode == "two-sim":
+            two_sim_specs = entry.get("two-sim", {})
+            column_order = ["ctrl", "test", "diff", "comp1", "comp2"]
+            selected = selected_columns or column_order
+            selected_set = set(selected)
+            return [
+                two_sim_specs[column]
+                for column in column_order
+                if column in selected_set
+                if column in two_sim_specs
+            ]
+        return entry.get("multi-sim", {}).get(comparison_type, [])
 
     def get_array_metadata(self, array_name):
         return self.array_metadata.get(array_name)

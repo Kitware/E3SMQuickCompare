@@ -77,14 +77,15 @@ class VariableView(TrameComponent):
         self.array_name = view_spec["array_name"]
         self.base_variable = view_spec["base_variable"]
         self.role = view_spec["role"]
-        self.comparison_mode = view_spec.get("comparison_mode", "diff")
+        self.comparison_mode = view_spec.get("comparison_mode", "multi-sim")
+        self.comparison_type = view_spec.get("comparison_type", "diff")
         self.display_label = view_spec["label"]
         self.variable_type = variable_type
         self.config = ViewConfiguration(server, variable=self.array_name)
         self.config.label = self.display_label
         self.name = f"view_{self.array_name}"
 
-        if self.role == "control":
+        if self.role in ("control", "test"):
             self.config.preset = "navia"
         elif self.role == "diff":
             self.config.preset = "Cool to Warm (Extended)"
@@ -156,7 +157,8 @@ class VariableView(TrameComponent):
         self.view_spec = view_spec
         self.base_variable = view_spec["base_variable"]
         self.role = view_spec["role"]
-        self.comparison_mode = view_spec.get("comparison_mode", "diff")
+        self.comparison_mode = view_spec.get("comparison_mode", "multi-sim")
+        self.comparison_type = view_spec.get("comparison_type", "diff")
         self.display_label = view_spec["label"]
         self.config.label = self.display_label
 
@@ -214,12 +216,26 @@ class VariableView(TrameComponent):
             return False
         return math.isfinite(data_range[0]) and math.isfinite(data_range[1])
 
-    def _get_default_range(self):
+    @staticmethod
+    def _max_abs_from_ranges(ranges):
+        max_abs = None
+        for data_range in ranges:
+            if data_range is None:
+                continue
+            candidate = max(abs(data_range[0]), abs(data_range[1]))
+            max_abs = candidate if max_abs is None else max(max_abs, candidate)
+        if max_abs is None:
+            return None
+        return [-max_abs, max_abs]
+
+    def _get_multi_sim_default_range(self):
         data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
         if self.role != "control":
             max_abs = None
             for view_spec in self.source.get_view_specs(
-                self.base_variable, self.comparison_mode
+                self.base_variable,
+                "multi-sim",
+                self.comparison_type,
             ):
                 if view_spec["role"] == "control":
                     continue
@@ -243,6 +259,72 @@ class VariableView(TrameComponent):
         if self._is_finite_range(data_range):
             return list(data_range)
         return None
+
+    def _get_two_sim_default_range(self):
+        data_info = self.source.views["atmosphere_data"].GetCellDataInformation()
+        two_sim_specs = self.source.get_view_specs(
+            self.base_variable,
+            "two-sim",
+            self.comparison_type,
+            ["ctrl", "test", "diff", "comp1", "comp2"],
+        )
+        spec_by_role = {spec["role"]: spec for spec in two_sim_specs}
+
+        if self.role in ("control", "test"):
+            ctrl_spec = spec_by_role.get("control")
+            test_spec = spec_by_role.get("test")
+            if ctrl_spec and test_spec:
+                ctrl_array = data_info.GetArray(ctrl_spec["array_name"])
+                test_array = data_info.GetArray(test_spec["array_name"])
+                if ctrl_array and test_array:
+                    ctrl_range = ctrl_array.GetRange()
+                    test_range = test_array.GetRange()
+                    if self._is_finite_range(ctrl_range) and self._is_finite_range(
+                        test_range
+                    ):
+                        return [
+                            min(ctrl_range[0], test_range[0]),
+                            max(ctrl_range[1], test_range[1]),
+                        ]
+
+        if self.role == "diff":
+            diff_spec = spec_by_role.get("diff")
+            if diff_spec:
+                diff_array = data_info.GetArray(diff_spec["array_name"])
+                if diff_array:
+                    diff_range = diff_array.GetRange()
+                    if self._is_finite_range(diff_range):
+                        return self._max_abs_from_ranges([diff_range])
+
+        if self.role in ("comp1", "comp2"):
+            comp_ranges = []
+            for role in ("comp1", "comp2"):
+                comp_spec = spec_by_role.get(role)
+                if not comp_spec:
+                    continue
+                comp_array = data_info.GetArray(comp_spec["array_name"])
+                if not comp_array:
+                    continue
+                comp_range = comp_array.GetRange()
+                if self._is_finite_range(comp_range):
+                    comp_ranges.append(comp_range)
+
+            centered = self._max_abs_from_ranges(comp_ranges)
+            if centered is not None:
+                return centered
+
+        data_array = data_info.GetArray(self.array_name)
+        if data_array:
+            data_range = data_array.GetRange()
+            if self._is_finite_range(data_range):
+                return list(data_range)
+
+        return None
+
+    def _get_default_range(self):
+        if self.comparison_mode == "two-sim":
+            return self._get_two_sim_default_range()
+        return self._get_multi_sim_default_range()
 
     def update_color_range(self, *_):
         if self.config.override_range:
@@ -379,7 +461,14 @@ class ViewManager(TrameComponent):
         return (
             self.source.get_array_metadata(view_spec)
             or next(
-                iter(self.source.get_view_specs(view_spec, self.state.comparison_mode)),
+                iter(
+                    self.source.get_view_specs(
+                        view_spec,
+                        self.state.comparison_mode,
+                        self.state.comparison_type,
+                        self.state.selected_columns,
+                    )
+                ),
                 None,
             )
             or {
@@ -387,6 +476,7 @@ class ViewManager(TrameComponent):
                 "base_variable": view_spec,
                 "role": "control",
                 "label": view_spec,
+                "comparison_mode": self.state.comparison_mode,
             }
         )
 
@@ -420,6 +510,19 @@ class ViewManager(TrameComponent):
                     if view is not None:
                         view.update_view_spec(view_spec)
 
+    def reset_view_orders(self, variables=None):
+        if variables is None:
+            variables = self._last_vars
+        if not variables:
+            return
+
+        for _, var_names in variables.items():
+            for var_name in var_names:
+                for view_spec in self.get_view_specs(var_name):
+                    view = self._var2view.get(view_spec["array_name"])
+                    if view is not None:
+                        view.config.order = 0
+
     def get_view(self, view_spec, variable_type):
         view_spec = self._resolve_view_spec(view_spec)
         array_name = view_spec["array_name"]
@@ -436,7 +539,12 @@ class ViewManager(TrameComponent):
         return view
 
     def get_view_specs(self, variable_name):
-        return self.source.get_view_specs(variable_name, self.state.comparison_mode)
+        return self.source.get_view_specs(
+            variable_name,
+            self.state.comparison_mode,
+            self.state.comparison_type,
+            self.state.selected_columns,
+        )
 
     def sync_camera(self, camera, *_):
         if self._camera_sync_in_progress:
@@ -516,14 +624,16 @@ class ViewManager(TrameComponent):
                                     classes="text-subtitle-2 font-weight-medium mb-1",
                                 )
                                 with v3.VRow(dense=True):
-                                    views_per_row = min(len(view_specs), 3)
+                                    if self.state.comparison_mode == "multi-sim":
+                                        views_per_row = min(len(view_specs), 3)
+                                    else:
+                                        views_per_row = max(1, len(view_specs))
                                     group_cols = max(1, math.floor(12 / views_per_row))
                                     group_names = [
                                         view_spec["array_name"] for view_spec in view_specs
                                     ]
-                                    for order, view_spec in enumerate(view_specs, start=1):
+                                    for view_spec in view_specs:
                                         view = self.get_view(view_spec, var_type)
-                                        view.config.order = order
                                         view.config.swap_group = sorted(
                                             [
                                                 name
@@ -609,10 +719,11 @@ class ViewManager(TrameComponent):
                     name = view_spec["array_name"]
                     self._active_configs[name] = config
                     if config.order:
+                        if config.order in existed_order:
+                            config.order = 0
+                            orders_to_update.append(config)
+                            continue
                         order_max = max(order_max, config.order)
-                        assert (
-                            config.order not in existed_order
-                        ), "Order already assigned"
                         existed_order.add(config.order)
                     else:
                         orders_to_update.append(config)

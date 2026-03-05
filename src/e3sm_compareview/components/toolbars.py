@@ -5,7 +5,7 @@ from trame.decorators import change
 from trame.widgets import client, html
 from trame.widgets import vuetify3 as v3
 
-from e3sm_compareview.comparison import COMPARISON_MODES
+from e3sm_compareview.comparison import COMPARISON_TYPES
 from e3sm_quickview.utils import js
 
 DENSITY = {
@@ -243,21 +243,58 @@ class ComparisonMode(v3.VToolbar):
 
         with self:
             v3.VIcon("mdi-compare-horizontal", classes="pl-6 opacity-50")
-            v3.VLabel("Comparison", classes="text-subtitle-2 px-4")
-            for mode in COMPARISON_MODES:
-                v3.VBtn(
-                    mode.upper(),
-                    size="small",
-                    variant=(f"comparison_mode === '{mode}' ? 'flat' : 'outlined'",),
-                    color=(f"comparison_mode === '{mode}' ? 'primary' : 'default'",),
-                    classes="mx-1 text-none",
-                    click=f"comparison_mode = '{mode}'",
+            with v3.Template(v_if="comparison_mode === 'multi-sim'"):
+                v3.VLabel("Comparison", classes="text-subtitle-2 px-4")
+                for comparison_type in COMPARISON_TYPES:
+                    v3.VBtn(
+                        comparison_type.upper(),
+                        size="small",
+                        variant=(
+                            f"comparison_type === '{comparison_type}' ? 'flat' : 'outlined'",
+                        ),
+                        color=(
+                            f"comparison_type === '{comparison_type}' ? 'primary' : 'default'",
+                        ),
+                        classes="mx-1 text-none",
+                        click=f"comparison_type = '{comparison_type}'",
+                    )
+                v3.VSpacer()
+                html.Div(
+                    "{{ Math.max(0, simulation_configs.filter(sim => sim.path !== control_simulation_file && sim.include).length) }} comparisons",
+                    classes="text-caption mr-4",
                 )
-            v3.VSpacer()
-            html.Div(
-                "{{ Math.max(0, simulation_configs.filter(sim => sim.path !== control_simulation_file && sim.include).length) }} comparisons",
-                classes="text-caption mr-4",
-            )
+
+            with v3.Template(v_else=True):
+                v3.VLabel("Columns", classes="text-subtitle-2 px-4")
+                for comp_type in ["ctrl", "test", "diff", "comp1", "comp2"]:
+                    v3.VBtn(
+                        comp_type.upper(),
+                        size="small",
+                        variant=(
+                            "selected_columns.includes('{0}') ? 'flat' : 'outlined'".format(
+                                comp_type
+                            ),
+                        ),
+                        color=(
+                            "selected_columns.includes('{0}') ? 'primary' : 'default'".format(
+                                comp_type
+                            ),
+                        ),
+                        classes="mx-1 text-none",
+                        click=(
+                            f"selected_columns.includes('{comp_type}') ? "
+                            f"selected_columns = selected_columns.filter(c => c !== '{comp_type}') : "
+                            f"selected_columns = [...selected_columns, '{comp_type}']"
+                        ),
+                    )
+                v3.VSpacer()
+                v3.VBtn(
+                    "Show all",
+                    size="small",
+                    variant="text",
+                    classes="mr-2 text-none",
+                    click="selected_columns = ['ctrl', 'test', 'diff', 'comp1', 'comp2']",
+                )
 
 
 class DataSelection(html.Div):
