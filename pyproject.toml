@@ -37,9 +37,6 @@ dependencies = [
 tauri = [
     "pyinstaller",
 ]
-vue2 = [
-    "trame-grid-layout>=1.0.3",
-]
 jupyter = [
     "jupyter-server-proxy>=4.0.0",
 ]
