@@ -11,6 +11,12 @@ def normalize_comparison_mode(mode):
     return "multi-sim"
 
 
+def normalize_comparison_type(comparison_type):
+    if comparison_type in COMPARISON_TYPES:
+        return comparison_type
+    return "diff"
+
+
 def default_simulation_label(file_path):
     return Path(file_path).stem
 

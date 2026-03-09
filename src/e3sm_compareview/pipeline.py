@@ -271,7 +271,7 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
 
         control = self.simulation_configs[0]
         for var_name in variables:
-            per_mode_specs = {}
+            per_type_specs = {}
             control_array_name = self.control_array_name(var_name)
             control_metadata = {
                 "array_name": control_array_name,
@@ -319,7 +319,7 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                     specs.append(comparison_spec)
                     self.array_metadata[comparison_spec["array_name"]] = comparison_spec
 
-                per_mode_specs[comparison_type] = sorted(
+                per_type_specs[comparison_type] = sorted(
                     specs,
                     key=lambda spec: spec.get("source_index", 0),
                 )
@@ -360,7 +360,7 @@ output.CellData.append(inputs[0].CellData["area"], 'area') # needed for utils.co
                     )
 
             self.variable_view_specs[var_name] = {
-                "multi-sim": per_mode_specs,
+                "multi-sim": per_type_specs,
                 "two-sim": two_sim_specs,
             }
 

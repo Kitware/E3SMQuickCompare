@@ -2,6 +2,7 @@ from trame.widgets import html
 from trame.widgets import vuetify3 as v3
 
 from e3sm_compareview.components.drawer_utils import drawer_style
+from e3sm_compareview.comparison import normalize_two_sim_target
 from e3sm_quickview.utils import js
 
 SIMULATION_DRAG_HANDLE_EVENTS = """
@@ -196,13 +197,9 @@ simulation_configs = simulation_configs.map((sim) =>
         self.state.control_simulation_file = control_path
         if self.state.comparison_mode != "two-sim":
             return
-        if self.state.two_sim_test_simulation_file != control_path:
-            return
 
-        fallback = control_path
-        for sim in self.state.simulation_configs or []:
-            sim_path = sim.get("path")
-            if sim_path and sim_path != control_path:
-                fallback = sim_path
-                break
-        self.state.two_sim_test_simulation_file = fallback
+        self.state.two_sim_test_simulation_file = normalize_two_sim_target(
+            self.state.simulation_configs,
+            control_path,
+            self.state.two_sim_test_simulation_file,
+        )

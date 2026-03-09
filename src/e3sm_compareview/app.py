@@ -18,6 +18,7 @@ from e3sm_compareview.comparison import (
     comparison_signature_for,
     label_signature_for,
     normalize_comparison_mode,
+    normalize_comparison_type,
     normalize_two_sim_target,
 )
 from e3sm_compareview.components import doc, drawers, file_browser, toolbars
@@ -459,21 +460,11 @@ class EAMApp(TrameApp):
             self.state.two_sim_test_simulation_file = comparisons.get(
                 "target", self.state.two_sim_test_simulation_file
             )
-            raw_mode = comparisons.get("mode")
-            if raw_mode in ("two-sim", "multi-sim"):
-                self.state.comparison_mode = raw_mode
-            else:
-                self.state.comparison_mode = comparisons.get(
-                    "strategy", self.state.comparison_mode
-                )
-
-            raw_type = comparisons.get("type")
-            if raw_type in ("diff", "comp1", "comp2"):
-                self.state.comparison_type = raw_type
-            else:
-                legacy_type = comparisons.get("mode")
-                if legacy_type in ("diff", "comp1", "comp2"):
-                    self.state.comparison_type = legacy_type
+            self.state.comparison_mode = normalize_comparison_mode(
+                comparisons.get("mode", comparisons.get("strategy", self.state.comparison_mode))
+            )
+            raw_type = comparisons.get("type", comparisons.get("mode"))
+            self.state.comparison_type = normalize_comparison_type(raw_type)
             self.state.selected_columns = comparisons.get(
                 "columns", self.state.selected_columns
             )
