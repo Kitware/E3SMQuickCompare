@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-03-09)
+
+### Features
+
+- Add toggle between two-sim and multi-sim modes
+  ([`7174769`](https://github.com/Kitware/E3SMQuickCompare/commit/7174769e5af727ff1b8fbffbaba18ac2ac3b32bf))
+
+### Refactoring
+
+- Clean comparison logic
+  ([`b4ce9d9`](https://github.com/Kitware/E3SMQuickCompare/commit/b4ce9d9e9fe10e32a9a83d63bb89c741197e33c2))
+
+
 ## v1.2.2 (2026-03-03)
 
 ### Bug Fixes
