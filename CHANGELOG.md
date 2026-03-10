@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.3.1 (2026-03-10)
+
+### Bug Fixes
+
+- **package**: Update conda env and numpy version
+  ([`f188195`](https://github.com/Kitware/E3SMQuickCompare/commit/f188195242a1552a86a3114c4a28a002942a43d7))
+
+
 ## v1.3.0 (2026-03-09)
 
 ### Features
