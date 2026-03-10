@@ -49,8 +49,8 @@ jobs:
         with:
           miniconda-version: "latest"
           auto-update-conda: true
-          activate-environment: quickview
-          environment-file: quickview-env.yml # optional (see below)
+          activate-environment: quickcompare
+          environment-file: quickcompare-env.yml # optional (see below)
           channel-priority: strict
 
       - name: Install dependencies and get version

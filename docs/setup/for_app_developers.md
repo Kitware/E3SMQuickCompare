@@ -21,8 +21,8 @@ cd QuickView
 
 ```
 # Set up conda environment
-conda env create -f quickview-env.yml
-conda activate quickview
+conda env create -f quickcompare-env.yml
+conda activate quickcompare
 
 # Install QuickView
 pip install -e .
