@@ -1,4 +1,4 @@
-name: quickview
+name: quickcompare
 channels:
   - conda-forge
 dependencies:

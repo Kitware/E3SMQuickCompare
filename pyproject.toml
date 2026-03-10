@@ -22,6 +22,7 @@ classifiers = [
 requires-python = ">=3.10"
 
 dependencies = [
+    "numpy<2.4",
     "trame>=3.12",
     "trame-vtk>=2.10",
     "trame-vuetify>=3.1",
