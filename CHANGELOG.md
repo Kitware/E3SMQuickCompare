@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.3.2 (2026-03-11)
+
+### Bug Fixes
+
+- Correct pipline to remove divide by zero's
+  ([`f3785fa`](https://github.com/Kitware/E3SMQuickCompare/commit/f3785faf685b0a1a715ec2ac05dfa88d421500a1))
+
+- Update color bars to use latest quickview
+  ([`89c26de`](https://github.com/Kitware/E3SMQuickCompare/commit/89c26def39ca373a0079275677e957d0d6aedf4d))
+
+- **ui**: Fix view order when switching comparison type
+  ([`bdc14b2`](https://github.com/Kitware/E3SMQuickCompare/commit/bdc14b238919f9d4eccd2ce981b4b672ac4e6575))
+
+### Continuous Integration
+
+- Update conda recipe
+  ([`0283386`](https://github.com/Kitware/E3SMQuickCompare/commit/0283386a4df08a59d2e0d2e58e0bc46324a09bf2))
+
+
 ## v1.3.1 (2026-03-10)
 
 ### Bug Fixes
