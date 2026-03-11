@@ -244,18 +244,29 @@ class EAMVisSource:
 
     def _build_programmable_filter_script(self):
         # Emit the control array plus one comparison array per selected simulation.
-        return f"""vars = {self.loaded_variables}
+        return f"""import numpy as np
+
+vars = {self.loaded_variables}
 for var in vars:
     ctrl = inputs[0].CellData[f"{{var}}"]
+    ctrl_np = np.asarray(ctrl)
 
     output.CellData.append(ctrl, f'{{var}}')
     output.CellData.append(ctrl, f'{{var}}__control')
     for sim_index, sim_input in enumerate(inputs[1:], start=1):
         sim = sim_input.CellData[f"{{var}}"]
+        sim_np = np.asarray(sim)
         output.CellData.append(sim, f'{{var}}__test__{{sim_index}}')
-        diff = sim - ctrl
-        comp1 = diff / ctrl
-        comp2 = (2 * diff) / (sim + ctrl)
+
+        # Use guarded division to avoid runtime warnings for zero-valued slices.
+        diff = sim_np - ctrl_np
+        comp1 = np.full(diff.shape, np.nan, dtype=np.float64)
+        comp2 = np.full(diff.shape, np.nan, dtype=np.float64)
+        denom_ctrl = ctrl_np
+        denom_sum = sim_np + ctrl_np
+        np.divide(diff, denom_ctrl, out=comp1, where=(denom_ctrl != 0))
+        np.divide(2.0 * diff, denom_sum, out=comp2, where=(denom_sum != 0))
+
         output.CellData.append(diff, f'{{var}}__diff__{{sim_index}}')
         output.CellData.append(comp1, f'{{var}}__comp1__{{sim_index}}')
         output.CellData.append(comp2, f'{{var}}__comp2__{{sim_index}}')
