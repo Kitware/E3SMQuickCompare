@@ -631,6 +631,7 @@ class EAMApp(TrameApp):
         ):
             return
 
+        self.view_manager.reset_view_orders(self.selected_variables)
         self._rebuild_active_layout(update_color=True)
 
     @change("comparison_mode")
