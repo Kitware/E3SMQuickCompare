@@ -1,4 +1,5 @@
-from trame.widgets import html, vuetify3 as v3
+from trame.widgets import html
+from trame.widgets import vuetify3 as v3
 
 
 def create_size_menu(name, config):
@@ -173,6 +174,7 @@ def create_bottom_bar(config, update_color_preset):
                                 text="Use data range",
                                 variant="text",
                             )
+
                             v3.VTextField(
                                 v_model="config.search",
                                 clearable=True,
@@ -194,7 +196,22 @@ def create_bottom_bar(config, update_color_preset):
                                 click="config.menu=false",
                             )
 
-                    with v3.VCardItem(v_show="config.override_range", classes="py-0"):
+                    with v3.VCardItem(classes="py-0 mb-2"):
+                        v3.VNumberInput(
+                            v_model="config.n_colors",
+                            hide_details=True,
+                            density="compact",
+                            variant="outlined",
+                            flat=True,
+                            label="Number of colors",
+                            classes="mt-2",
+                            step=[1],
+                            min=[2],
+                            max=[255],
+                        )
+                    with v3.VCardItem(
+                        v_show="config.override_range", classes="py-0 mb-2"
+                    ):
                         v3.VTextField(
                             v_model="config.color_value_min",
                             hide_details=True,
@@ -224,7 +241,7 @@ def create_bottom_bar(config, update_color_preset):
                             subtitle=("entry.name",),
                             click=(
                                 update_color_preset,
-                                "[entry.name, config.invert, config.use_log_scale]",
+                                "[entry.name, config.invert, config.use_log_scale, config.n_colors]",
                             ),
                             active=("config.preset === entry.name",),
                         ):
@@ -239,7 +256,7 @@ def create_bottom_bar(config, update_color_preset):
             )
             with html.Div(classes="overflow-hidden rounded w-100", style="height:70%;"):
                 html.Img(
-                    src=("config.preset_img",),
+                    src=("config.lut_img",),
                     style="width:100%;height:2rem;",
                     draggable=False,
                 )

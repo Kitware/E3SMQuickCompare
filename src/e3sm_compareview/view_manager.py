@@ -11,7 +11,7 @@ from paraview import simple
 
 from e3sm_compareview.components import view as tview
 from e3sm_quickview.presets import COLOR_BLIND_SAFE
-from e3sm_quickview.utils.color import COLORBAR_CACHE, get_cached_colorbar_image
+from e3sm_quickview.utils.color import COLORBAR_CACHE, lut_to_img
 
 
 def auto_size_to_col(size):
@@ -50,7 +50,6 @@ class ViewConfiguration(StateDataModel):
     variable: str
     label: str = ""
     preset: str = "Inferno (matplotlib)"
-    preset_img: str
     invert: bool = False
     color_blind: bool = False
     use_log_scale: bool = False
@@ -67,6 +66,8 @@ class ViewConfiguration(StateDataModel):
     menu: bool = False
     swap_group: list[str]
     search: str | None
+    n_colors: int = 255
+    lut_img: str
 
 
 class VariableView(TrameComponent):
@@ -147,7 +148,9 @@ class VariableView(TrameComponent):
             ["override_range", "color_range"], self.update_color_range, eager=True
         )
         self.config.watch(
-            ["preset", "invert", "use_log_scale"], self.update_color_preset, eager=True
+            ["preset", "invert", "use_log_scale", "n_colors"],
+            self.update_color_preset,
+            eager=True,
         )
 
         # GUI
@@ -180,18 +183,22 @@ class VariableView(TrameComponent):
         self.view.ResetCamera(True, 0.9)
         self.ctx[self.name].update()
 
-    def update_color_preset(self, name, invert, log_scale):
+    def update_color_preset(self, name, invert, log_scale, n_colors=255):
         self.config.preset = name
-        self.config.preset_img = get_cached_colorbar_image(
-            self.config.preset,
-            self.config.invert,
-        )
+        self.lut.UseLogScale = 0
         self.lut.ApplyPreset(self.config.preset, True)
         if invert:
             self.lut.InvertTransferFunction()
+
         if log_scale:
             self.lut.MapControlPointsToLogSpace()
             self.lut.UseLogScale = 1
+
+        if n_colors is not None:
+            self.lut.NumberOfTableValues = n_colors
+
+        self.config.lut_img = lut_to_img(self.lut)
+
         self.render()
 
     def color_range_str_to_float(self, color_value_min, color_value_max):
