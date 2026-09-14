@@ -104,6 +104,7 @@ class EAMApp(TrameApp):
                 "comparison_type": "diff",
                 "selected_columns": DEFAULT_TWO_SIM_COLUMNS,
                 "projection": ["Robinson"],
+                "grid_interval": 30,
                 "spherical_center_lat": 0,
                 "spherical_center_lon": 0,
                 "dragged_simulation_path": "",
@@ -485,6 +486,7 @@ class EAMApp(TrameApp):
                 "crop_longitude",
                 "crop_latitude",
                 "projection",
+                "grid_interval",
                 "crop_slider_edit",
                 "slice_slider_edit",
                 "animation_track",
@@ -631,6 +633,7 @@ class EAMApp(TrameApp):
             "crop_longitude",
             "crop_latitude",
             "projection",
+            "grid_interval",
             "crop_slider_edit",
             "slice_slider_edit",
         ):
@@ -950,6 +953,14 @@ class EAMApp(TrameApp):
         self.source.UpdatePipeline()
         self.view_manager.refresh_pipeline_inputs()
         self.view_manager.reset_camera()
+
+    @change("grid_interval")
+    def _on_grid_interval(self, grid_interval, **_):
+        if grid_interval is None:
+            return
+
+        self.source.UpdateGridInterval(grid_interval)
+        self.view_manager.render()
 
     @change("spherical_center_lat", "spherical_center_lon", "projection")
     def _on_center(self, spherical_center_lat, spherical_center_lon, projection, **_):

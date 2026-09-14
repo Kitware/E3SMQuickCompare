@@ -41,6 +41,13 @@ COASTLINE_WIDTH = 0.5
 GRIDLINE_COLOR = (0.0, 0.0, 0.0)
 GRIDLINE_WIDTH = 0.5
 GRIDLINE_DASH_PERIOD_RATIO = 0.02
+# Grid spacing the dash period above was tuned against. Finer grids scale the
+# period down proportionally so every cell keeps the same number of dashes,
+# instead of dashes growing longer than the gap between neighbouring lines.
+GRIDLINE_DASH_REFERENCE_INTERVAL = 30.0
+# Floor the period so very fine grids degrade to a tight dotted line rather
+# than a sub-pixel texture repeat, which reads as aliasing noise.
+GRIDLINE_DASH_MIN_PERIOD_RATIO = 0.002
 MAP_PERIMETER_WIDTH = 2.0
 
 
@@ -223,6 +230,9 @@ class GridLines:
     def vtk_geometry(self):
         return self.surface.GetClientSideObject()
 
+    def set_interval(self, interval):
+        self.grid_lines.Interval = int(interval)
+
     def crop(self, longitude_min_max, latitude_min_max):
         self.clip_longitude = [float(longitude_min_max[0]), float(longitude_min_max[1])]
         self.clip_latitude = [float(latitude_min_max[0]), float(latitude_min_max[1])]
@@ -246,7 +256,7 @@ class GridLines:
         self.perimeter_extract.SetCellIds(tuple(perimeter_ids), len(perimeter_ids))
         self.interior_extract.Update()
         self.perimeter_extract.Update()
-        self._update_dash_scale()
+        self._update_dash_scale(interval)
 
     @staticmethod
     def _create_dash_texture():
@@ -273,14 +283,18 @@ class GridLines:
             + 1
         )
 
-    def _update_dash_scale(self):
+    def _update_dash_scale(self, interval):
         interior = self.interior_extract.GetOutput()
         if not interior.GetNumberOfCells():
             return
 
         bounds = interior.GetBounds()
         map_span = math.hypot(bounds[1] - bounds[0], bounds[3] - bounds[2])
-        dash_period = map_span * GRIDLINE_DASH_PERIOD_RATIO
+        period_ratio = max(
+            GRIDLINE_DASH_PERIOD_RATIO * interval / GRIDLINE_DASH_REFERENCE_INTERVAL,
+            GRIDLINE_DASH_MIN_PERIOD_RATIO,
+        )
+        dash_period = map_span * period_ratio
         if dash_period:
             self.dash_transform.Identity()
             self.dash_transform.Scale(1 / dash_period, 1, 1)
@@ -805,6 +819,12 @@ class EAMVisSource:
         self.data_reader.crop(cliplong, cliplat)
         self.continent.crop(cliplong, cliplat)
         self.grid_lines.crop(cliplong, cliplat)
+
+    def UpdateGridInterval(self, interval):
+        # Changing the spacing changes how many cells the generator emits, so the
+        # interior/perimeter split has to be recomputed against the new geometry.
+        self.grid_lines.set_interval(interval)
+        self.grid_lines.update()
 
     def UpdateProjection(self, proj):
         if not self.data_reader.valid:
