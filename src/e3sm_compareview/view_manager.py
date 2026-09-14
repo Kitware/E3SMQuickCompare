@@ -39,6 +39,9 @@ def auto_size_to_col(size):
     return auto_size_to_col(size + 1)
 
 
+MAX_PROBE_COLUMNS = 4
+
+
 COL_SIZE_LOOKUP = {
     0: auto_size_to_col,
     1: 12,
@@ -115,19 +118,16 @@ class ViewManager(TrameComponent):
     @debounce.debounce(0.2)
     def _on_hover(self, *_):
         with self.state:
-            if not self.state.hover_info:
-                self.state.probe_table = None
-                return
+            self.state.probe_table = None
 
-            view = self._var2view.get(self.state.hover_info)
+            hover_info = self.state.hover_info
+            view = self._var2view.get(hover_info)
             if view is None:
-                self.state.probe_table = None
                 return
 
             x, y = self._render_window_interactor.GetEventPosition()
             self._picker.Pick(x, y, 0, view.renderer)
             if self._picker.cell_id < 0:
-                self.state.probe_table = None
                 return
 
             cell_id = self._picker.cell_id
@@ -152,70 +152,103 @@ class ViewManager(TrameComponent):
                     return None
                 return f"{value:.6g}"
 
-            active_variable = view.base_variable
-            view_specs = self.get_view_specs(active_variable)
-            if not view_specs:
-                self.state.probe_table = None
+            is_multi_sim = self.state.comparison_mode == "multi-sim"
+            comparison_type = self.state.comparison_type
+            show_source = is_multi_sim and comparison_type != "source"
+            control_reads_zero = is_multi_sim and comparison_type in (
+                "diff",
+                "comp1",
+                "comp2",
+            )
+            hovered_variable = view.base_variable
+
+            columns = []
+            for variable_name in self._probe_variables(hovered_variable):
+                view_specs = self.get_view_specs(variable_name)
+                if not view_specs:
+                    continue
+
+                source_by_path = {}
+                if show_source:
+                    source_by_path = {
+                        spec.get("path"): spec
+                        for spec in self.source.data_reader.get_view_specs(
+                            variable_name,
+                            "multi-sim",
+                            "source",
+                        )
+                    }
+
+                columns.append((variable_name, view_specs, source_by_path))
+
+            if not columns:
                 return
 
-            source_specs_by_path = {}
-            if self.state.comparison_mode == "multi-sim":
-                source_specs_by_path = {
-                    spec.get("path"): spec
-                    for spec in self.source.data_reader.get_view_specs(
-                        active_variable,
-                        "multi-sim",
-                        "source",
-                    )
-                }
-
+            _, row_specs, _ = columns[0]
             rows = []
-            for row_spec in view_specs:
-                row_label = row_spec.get("label", row_spec["array_name"])
-                if self.state.comparison_mode == "multi-sim":
-                    row_label = row_label.rsplit(" (", 1)[0]
+            for index, row_spec in enumerate(row_specs):
+                label = row_spec.get("label", row_spec["array_name"])
+                if is_multi_sim:
+                    label = label.rsplit(" (", 1)[0]
                     if row_spec.get("role") == "control":
-                        row_label = f"{row_label} (ctrl)"
+                        label = f"{label} (ctrl)"
 
-                if (
-                    row_spec.get("role") == "control"
-                    and self.state.comparison_mode == "multi-sim"
-                    and self.state.comparison_type in ("diff", "comp1", "comp2")
-                ):
-                    display = "0"
-                else:
-                    display = picked_value(row_spec["array_name"])
+                cells = []
+                for _, view_specs, source_by_path in columns:
+                    spec = view_specs[index]
+                    source_spec = source_by_path.get(spec.get("path"))
+                    cells.append(
+                        {
+                            # A control row has diff of nothing with itself
+                            "display": (
+                                "0"
+                                if control_reads_zero and spec.get("role") == "control"
+                                else picked_value(spec["array_name"])
+                            ),
+                            "active": spec["array_name"] == hover_info,
+                            "has_source": source_spec is not None,
+                            "source_display": (
+                                picked_value(source_spec["array_name"])
+                                if source_spec
+                                else None
+                            ),
+                        }
+                    )
 
-                row = {
-                    "key": row_spec["array_name"],
-                    "label": row_label,
-                    "active": row_spec["array_name"] == self.state.hover_info,
-                    "display": display,
-                    "has_source": False,
-                    "source_display": None,
-                }
+                rows.append(
+                    {
+                        "key": row_spec["array_name"],
+                        "label": label,
+                        "active": any(cell["active"] for cell in cells),
+                        "cells": cells,
+                    }
+                )
 
-                if (
-                    self.state.comparison_mode == "multi-sim"
-                    and self.state.comparison_type != "source"
-                ):
-                    source_spec = source_specs_by_path.get(row_spec.get("path"))
-                    if source_spec is not None:
-                        row["has_source"] = True
-                        row["source_display"] = picked_value(source_spec["array_name"])
-
-                rows.append(row)
-
+            comparison_label = MULTI_SIM_COMPARISON_LABELS.get(
+                comparison_type, comparison_type
+            )
             self.state.probe_table = {
                 "lat": data_info.get("lat", [None])[0],
                 "lon": data_info.get("lon", [None])[0],
-                "column_label": (
-                    f"{active_variable} {MULTI_SIM_COMPARISON_LABELS.get(view.comparison_type, view.comparison_type)}"
-                    if self.state.comparison_mode == "multi-sim"
-                    else active_variable
-                ),
+                "columns": [
+                    {
+                        "key": name,
+                        "label": f"{name} {comparison_label}" if is_multi_sim else name,
+                        "active": name == hovered_variable,
+                    }
+                    for name, _, _ in columns
+                ],
                 "rows": rows,
             }
+
+    def _probe_variables(self, hovered_variable):
+        """Leading variables in view order, plus the one being probed."""
+        ordered_variables = self.get_group_order()
+        leading_variables = ordered_variables[:MAX_PROBE_COLUMNS]
+        if hovered_variable in leading_variables:
+            return leading_variables
+
+        return [*ordered_variables[: MAX_PROBE_COLUMNS - 1], hovered_variable]
 
     def _active_views(self):
         if self._active_configs:

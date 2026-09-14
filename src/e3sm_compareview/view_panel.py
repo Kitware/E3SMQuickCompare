@@ -565,8 +565,17 @@ class VariableView(TrameComponent):
                                 with html.Tr():
                                     html.Td("Simulation", classes="font-weight-bold")
                                     html.Td(
-                                        "{{ probe_table.column_label }}",
-                                        classes="font-weight-bold text-blue-lighten-3",
+                                        "{{ column.label }}",
+                                        v_for="column in probe_table.columns",
+                                        key="column.key",
+                                        classes="font-weight-bold",
+                                        style=(
+                                            """
+                                            {
+                                                color: column.active ? '#90caf9' : null,
+                                            }
+                                            """,
+                                        ),
                                     )
 
                                 with html.Tr(
@@ -585,29 +594,31 @@ class VariableView(TrameComponent):
                                         ),
                                     )
                                     with html.Td(
+                                        v_for="(cell, index) in row.cells",
+                                        key="index",
                                         style=(
                                             """
                                             {
-                                                backgroundColor: row.active ? '#1e3a8a' : null,
-                                                border: row.active ? '1px solid #90caf9' : null,
+                                                backgroundColor: cell.active ? '#1e3a8a' : null,
+                                                border: cell.active ? '1px solid #90caf9' : null,
                                             }
                                             """,
                                         ),
                                     ):
                                         html.Div(
-                                            "{{ row.display || 'N/A' }}",
+                                            "{{ cell.display || 'N/A' }}",
                                             style=(
                                                 """
                                                 {
-                                                    fontWeight: row.active ? 700 : null,
-                                                    color: row.active ? '#ffffff' : null,
+                                                    fontWeight: cell.active ? 700 : null,
+                                                    color: cell.active ? '#ffffff' : null,
                                                 }
                                                 """,
                                             ),
                                         )
                                         html.Div(
-                                            "(value: {{ row.source_display || 'N/A' }})",
-                                            v_if="row.has_source",
+                                            "(value: {{ cell.source_display || 'N/A' }})",
+                                            v_if="cell.has_source",
                                             classes="text-caption text-medium-emphasis",
                                         )
 
