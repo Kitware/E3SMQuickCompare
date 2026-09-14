@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v1.11.0 (2026-09-14)
+
+### Bug Fixes
+
+- Update lat/lon gridline spacing changes from quickview
+  ([`5336bc9`](https://github.com/Kitware/E3SMQuickCompare/commit/5336bc9d96db96e2c8d7d2b790f33c86de209ba1))
+
+### Continuous Integration
+
+- **fix**: Revert to normal semantic release CI
+  ([`17744e9`](https://github.com/Kitware/E3SMQuickCompare/commit/17744e99e6997dd1cfd089be9a9347d0798374a3))
+
+### Features
+
+- **data probe**: Add multiple columns for data probe vars
+  ([`960e428`](https://github.com/Kitware/E3SMQuickCompare/commit/960e428b060c23ff63546b82536eaabacff9f8eb))
+
+
 ## v1.10.1 (2026-08-27)
 
 ### Bug Fixes
