@@ -563,7 +563,7 @@ class VariableView(TrameComponent):
                         ):
                             with html.Tbody():
                                 with html.Tr():
-                                    html.Td("Simulation", classes="font-weight-bold")
+                                    html.Td("", classes="font-weight-bold")
                                     html.Td(
                                         "{{ column.label }}",
                                         v_for="column in probe_table.columns",
