@@ -21,7 +21,7 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
     "e3sm-quickview>=2.10.1",
-    "trame-colormaps>=1.6.1",
+    "trame-colormaps>=1.7.2",
 ]
 
 [project.optional-dependencies]
