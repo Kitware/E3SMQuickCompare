@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v1.11.1 (2026-10-01)
+
+### Bug Fixes
+
+- Pin e3sm-quickview version >=2.10.1
+  ([`727924b`](https://github.com/Kitware/E3SMQuickCompare/commit/727924b558528a3761edf17288462c57e71626ec))
+
+- Remove numpy<2.4 pin
+  ([`65f9a2c`](https://github.com/Kitware/E3SMQuickCompare/commit/65f9a2cc4a3f574ddb29c501245394b7c7abe29e))
+
+- **paraview**: Update vtk/paraview imports to support paraview 6.2
+  ([`0e47094`](https://github.com/Kitware/E3SMQuickCompare/commit/0e47094197c5d6141c5d26e2a1d9a7280ed54d2a))
+
+
 ## v1.11.0 (2026-09-14)
 
 ### Bug Fixes
