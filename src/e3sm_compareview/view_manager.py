@@ -5,7 +5,7 @@ from e3sm_compareview.comparison import MULTI_SIM_COMPARISON_LABELS
 from paraview.modules.vtkPVVTKExtensionsInteractionStyle import (
     vtkPVInteractorStyle,
     vtkPVTrackballZoom,
-    vtkTrackballPan,
+    vtkPVTrackballPan,
 )
 from e3sm_quickview.utils import debounce
 from trame.app import TrameComponent
@@ -78,7 +78,7 @@ class ViewManager(TrameComponent):
             )
         )
         self._style.AddManipulator(
-            vtkTrackballPan(
+            vtkPVTrackballPan(
                 button=1,
                 shift=0,
                 control=0,
