@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.11.2 (2026-10-01)
+
+### Bug Fixes
+
+- **colormaps**: Use 1.7.2 or newer
+  ([`c424eac`](https://github.com/Kitware/E3SMQuickCompare/commit/c424eac2ba314e703daebc038bd3529e49ff20a5))
+
+
 ## v1.11.1 (2026-10-01)
 
 ### Bug Fixes
