@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.11.3 (2026-10-15)
+
+### Bug Fixes
+
+- **coastlines**: Allow toggle between resolutions
+  ([`5b45426`](https://github.com/Kitware/E3SMQuickCompare/commit/5b4542653bf18bf2968fadf2339b3dcb3704627a))
+
+### Continuous Integration
+
+- **osmesa**: Add osmesa to ubtuntu/windows package ci runners
+  ([`20a43aa`](https://github.com/Kitware/E3SMQuickCompare/commit/20a43aa080f1c2eba89ad6f15493864678780fa4))
+
+
 ## v1.11.2 (2026-10-01)
 
 ### Bug Fixes
