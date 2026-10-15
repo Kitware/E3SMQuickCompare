@@ -1026,6 +1026,11 @@ class EAMApp(TrameApp):
             self.state.dirty("active_tools")
 
 
+    @change("continent_level")
+    def _on_continent_res(self, continent_level, **_):
+        self.source.continent.update_resolution(continent_level)
+        self.view_manager.render()
+
 # -------------------------------------------------------------------------
 # Standalone execution
 # -------------------------------------------------------------------------

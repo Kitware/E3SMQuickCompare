@@ -36,6 +36,9 @@ from e3sm_compareview.comparison import (
     COMPARISON_TYPE_TITLE_SUFFIXES,
 )
 
+
+from e3sm_quickview.pipeline import CONTINENT_SMALL, CONTINENT_MEDIUM, CONTINENT_LARGE
+
 COASTLINE_COLOR = (0.5, 0.5, 0.5)
 COASTLINE_WIDTH = 0.5
 GRIDLINE_COLOR = (0.0, 0.0, 0.0)
@@ -93,19 +96,10 @@ class Continent:
         self.clip_longitude = [-180.0, 180.0]
         self.clip_latitude = [-90.0, 90.0]
 
-        globe_file = os.path.join(os.path.dirname(__file__), "data", "globe.vtk")
-        self.reader = LegacyVTKReader(
-            registrationName="ContReader",
-            FileNames=[globe_file],
-        )
-        self.contour = Contour(registrationName="ContContour", Input=self.reader)
-        self.contour.ContourBy = ["POINTS", "cstar"]
-        self.contour.Isosurfaces = [0.5]
-        self.contour.PointMergeMethod = "Uniform Binning"
-
+        self.reader = simple.XMLPolyDataReader(FileName=[CONTINENT_SMALL])
         self.extract = EAMTransformAndExtract(  # noqa: F821
             registrationName="ContExtract",
-            Input=self.contour,
+            Input=self.reader,
         )
         self.extract.LongitudeRange = self.clip_longitude
         self.extract.LatitudeRange = self.clip_latitude
@@ -128,6 +122,13 @@ class Continent:
         prop.SetLineWidth(COASTLINE_WIDTH)
         prop.SetAmbientColor(*COASTLINE_COLOR)
         prop.SetDiffuseColor(*COASTLINE_COLOR)
+
+
+    def update_resolution(self, level=0):
+        level = max(min(int(level), 2), 0)
+        file = [CONTINENT_SMALL, CONTINENT_MEDIUM, CONTINENT_LARGE][level]
+        self.reader.FileName = (file,)
+        self.surface.UpdatePipeline()
 
     @property
     def projection(self):
