@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.11.4 (2026-11-05)
+
+### Bug Fixes
+
+- **py3.14**: Add support for python 3.14
+  ([`62de3b3`](https://github.com/Kitware/E3SMQuickCompare/commit/62de3b31b5df95aa3e97379c931e7bbd8901066a))
+
+
 ## v1.11.3 (2026-10-15)
 
 ### Bug Fixes
