@@ -246,10 +246,12 @@ class ParaViewFileBrowser(TrameComponent):
 
     def goto_home(self):
         self._current_path = self._home_path
+        self.set("filter", "")  # Reset filter when changing directory
         self.update_listing()
 
     def goto_parent(self):
         self._current_path = self._current_path.parent
+        self.set("filter", "")  # Reset filter when changing directory
         self.update_listing()
 
     def select_entry(self, entry):
