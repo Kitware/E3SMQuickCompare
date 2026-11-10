@@ -901,6 +901,17 @@ class EAMVisSource:
     def UpdateSlicing(self, dimension, slice):
         self.data_reader.update_slicing(dimension, slice)
 
+    def Clip(self, plane=None):
+        mappers = (
+            self.grid_lines.mapper,
+            self.grid_lines.perimeter_mapper,
+            self.continent.mapper,
+        )
+        for mapper in mappers:
+            mapper.RemoveAllClippingPlanes()
+            if plane:
+                mapper.AddClippingPlane(plane)
+
     def Update(self, simulation_configs, conn_file, variables=None, force_reload=False):
         valid = self.data_reader.load(
             simulation_configs,

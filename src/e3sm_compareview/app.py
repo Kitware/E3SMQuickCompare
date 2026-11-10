@@ -983,12 +983,14 @@ class EAMApp(TrameApp):
             self.state.longitude_origin = (spherical_center_lon + 360) % 360 - 180
 
         if self._projection_name(projection) != "Spherical":
+            self.source.Clip()
             self.view_manager.camera_projection()
             return
 
         if spherical_center_lat is None or spherical_center_lon is None:
             return
 
+        self.source.Clip(self.view_manager._clip_plane)
         self.view_manager.center_camera(
             float(spherical_center_lat), float(spherical_center_lon)
         )
