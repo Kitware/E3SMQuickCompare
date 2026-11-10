@@ -125,7 +125,12 @@ class Continent:
 
 
     def update_resolution(self, level=0):
-        level = max(min(int(level), 2), 0)
+        level = int(level)
+        self.actor.visibility = (level >= 0)
+        if level < 0:
+            return
+
+        level = min(level, 2)
         file = [CONTINENT_SMALL, CONTINENT_MEDIUM, CONTINENT_LARGE][level]
         self.reader.FileName = (file,)
         self.surface.UpdatePipeline()
