@@ -107,6 +107,8 @@ class EAMApp(TrameApp):
                 "grid_interval": 30,
                 "spherical_center_lat": 0,
                 "spherical_center_lon": 0,
+                # Default longitude origin
+                "longitude_origin": -180,
                 "dragged_simulation_path": "",
             }
         )
@@ -475,6 +477,8 @@ class EAMApp(TrameApp):
             "tools": self.state.active_tools,
             "help": not self.state.compact_drawer,
             "variable-order": self.view_manager.get_group_order(active_variables),
+            "map-center-lon": self.state.spherical_center_lon,
+            "map-center-lat": self.state.spherical_center_lat,
         }
         state_content["layout"] = layout
         data_selection = {
@@ -640,6 +644,11 @@ class EAMApp(TrameApp):
             if key in data_selection:
                 self.state[key] = data_selection[key]
         self.state.projection = [self._projection_name(self.state.projection)]
+        self.state.spherical_center_lon = layout.get("map-center-lon", 0)
+        self.state.spherical_center_lat = layout.get("map-center-lat", 0)
+        self.state.longitude_origin = (
+            self.state.spherical_center_lon + 360
+        ) % 360 - 180
         await self._data_load_variables()
         self.state.variables_loaded = True
 
@@ -657,8 +666,14 @@ class EAMApp(TrameApp):
             ):
                 self.state.animation_track = data_selection["animation_track"]
 
+        longitude_origin = self.state.longitude_origin
+        crop_longitude = self.state.crop_longitude
+        self.source.SetLongitudeOrigin(longitude_origin)
         self.source.ApplyClipping(
-            self.state.crop_longitude,
+            (
+                crop_longitude[0] + longitude_origin + 180,
+                crop_longitude[1] + longitude_origin + 180,
+            ),
             self.state.crop_latitude,
         )
         self.source.UpdateProjection(self._projection_name(self.state.projection))
@@ -964,6 +979,9 @@ class EAMApp(TrameApp):
 
     @change("spherical_center_lat", "spherical_center_lon", "projection")
     def _on_center(self, spherical_center_lat, spherical_center_lon, projection, **_):
+        if spherical_center_lon is not None:
+            self.state.longitude_origin = (spherical_center_lon + 360) % 360 - 180
+
         if self._projection_name(projection) != "Spherical":
             self.view_manager.camera_projection()
             return
@@ -984,20 +1002,40 @@ class EAMApp(TrameApp):
         self.view_manager.render()
         self._update_field_avgs()
 
+    @change("longitude_origin")
+    def _on_longitude_origin(self, longitude_origin, **_):
+        """Rotate the map so its left edge sits at the chosen longitude."""
+        origin = float(longitude_origin)
+        self.source.SetLongitudeOrigin(origin)
+        if not self.source.data_reader.valid:
+            return
+
+        self.view_manager.refresh_pipeline_inputs()
+        self.view_manager.update_color_range()
+        self.view_manager.reset_camera()
+        self.view_manager.render()
+
     @change(
         "crop_longitude",
         "crop_latitude",
+        "longitude_origin",
     )
     def _on_downstream_change(
         self,
         crop_longitude,
         crop_latitude,
+        longitude_origin,
         **_,
     ):
+        crop_longitude_min = crop_longitude[0] + longitude_origin + 180
+        crop_longitude_max = crop_longitude[1] + longitude_origin + 180
+        self.source.ApplyClipping(
+            (crop_longitude_min, crop_longitude_max),
+            crop_latitude,
+        )
         if not self.state.variables_loaded:
             return
 
-        self.source.ApplyClipping(crop_longitude, crop_latitude)
         self.source.UpdateProjection(self._projection_name(self.state.projection))
         self.source.UpdatePipeline()
         self.view_manager.refresh_pipeline_inputs()

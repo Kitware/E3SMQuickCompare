@@ -95,4 +95,3 @@ width="240", align=right }
 
 QuickView currently provides a very simple map setting submenu that contains a
 few commonly used map projections. More projections can be added upon request.
-In the near future, the center longitude of the map will become customizable.

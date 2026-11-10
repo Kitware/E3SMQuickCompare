@@ -37,7 +37,12 @@ from e3sm_compareview.comparison import (
 )
 
 
-from e3sm_quickview.pipeline import CONTINENT_SMALL, CONTINENT_MEDIUM, CONTINENT_LARGE
+from e3sm_quickview.pipeline import (
+    CONTINENT_LARGE,
+    CONTINENT_MEDIUM,
+    CONTINENT_SMALL,
+    longitude_window,
+)
 
 COASTLINE_COLOR = (0.5, 0.5, 0.5)
 COASTLINE_WIDTH = 0.5
@@ -52,12 +57,6 @@ GRIDLINE_DASH_REFERENCE_INTERVAL = 30.0
 # than a sub-pixel texture repeat, which reads as aliasing noise.
 GRIDLINE_DASH_MIN_PERIOD_RATIO = 0.002
 MAP_PERIMETER_WIDTH = 2.0
-
-
-def range_to_trim(value_range, max_value):
-    """Convert [-max, max] coordinate ranges into [left_trim, right_trim]."""
-    min_value, max_range = value_range
-    return [min_value + max_value, max_value - max_range]
 
 
 def load_plugins():
@@ -93,6 +92,7 @@ class ErrorObserver:
 class Continent:
     def __init__(self, projection="Robinson"):
         self._projection = projection
+        self._longitude_origin = -180.0
         self.clip_longitude = [-180.0, 180.0]
         self.clip_latitude = [-90.0, 90.0]
 
@@ -140,6 +140,16 @@ class Continent:
         self.proj.Projection = value
 
     @property
+    def longitude_origin(self):
+        return self._longitude_origin
+
+    @longitude_origin.setter
+    def longitude_origin(self, origin):
+        self._longitude_origin = origin
+        self.extract.LongitudeOrigin = origin
+        self.proj.LongitudeOrigin = origin
+
+    @property
     def view_proxy(self):
         return OutputPort(self.proj, 0)
 
@@ -162,6 +172,7 @@ class Continent:
 class GridLines:
     def __init__(self, projection="Robinson"):
         self._projection = projection
+        self._longitude_origin = -180.0
         self.clip_longitude = [-180.0, 180.0]
         self.clip_latitude = [-90.0, 90.0]
 
@@ -222,6 +233,15 @@ class GridLines:
     def projection(self, value):
         self._projection = value
         self.proj.Projection = value
+
+    @property
+    def longitude_origin(self):
+        return self._longitude_origin
+
+    @longitude_origin.setter
+    def longitude_origin(self, origin):
+        self._longitude_origin = origin
+        self.proj.LongitudeOrigin = origin
 
     @property
     def view_proxy(self):
@@ -323,6 +343,7 @@ class DataReader:
         self.atmos_surface = None
         self.extents = [-180.0, 180.0, -90.0, 90.0]
         self.moveextents = [-180.0, 180.0, -90.0, 90.0]
+        self.longitude_origin = -180.0
         self.clip_longitude = [-180.0, 180.0]
         self.clip_latitude = [-90.0, 90.0]
         self.observer = ErrorObserver()
@@ -359,6 +380,20 @@ class DataReader:
     def _apply_clip_to_extract(self):
         self.atmos_extract.LongitudeRange = self.clip_longitude
         self.atmos_extract.LatitudeRange = self.clip_latitude
+
+    def set_longitude_origin(self, origin):
+        """Place the left edge of the map; the right edge is a turn further east."""
+        self.longitude_origin = origin
+        if self.atmos_proj is not None:
+            self._apply_longitude_origin()
+
+    def _apply_longitude_origin(self):
+        self.atmos_proj.LongitudeOrigin = self.longitude_origin
+        # The clip already rearranges the halves; it just needs the new seam.
+        if self.atmos_center is not None:
+            self.atmos_center.LongitudeOrigin = self.longitude_origin
+        else:
+            self.atmos_extract.LongitudeOrigin = self.longitude_origin
 
     def update(self, time=0.0):
         if not self.valid or self.atmos_proj is None:
@@ -682,16 +717,17 @@ if lon_np is not None:
                 "(expected EAMCenterMeridian+EAMExtract or EAMTransformAndExtract)"
             )
 
-        self._apply_clip_to_extract()
-        self.atmos_extract.UpdatePipeline()
-        self.extents = self.atmos_extract.GetDataInformation().GetBounds()
-
         self.atmos_proj = EAMProject(  # noqa: F821
             registrationName="AtmosProj",
             Input=OutputPort(self.atmos_extract, 0),
         )
         self.atmos_proj.Projection = self.projection
         self.atmos_proj.Translate = 0
+
+        self._apply_longitude_origin()
+        self._apply_clip_to_extract()
+        self.atmos_extract.UpdatePipeline()
+        self.extents = self.atmos_extract.GetDataInformation().GetBounds()
         self.atmos_proj.UpdatePipeline()
 
         self.atmos_surface = ExtractSurface(
@@ -808,6 +844,9 @@ class EAMVisSource:
         self.data_reader = DataReader(self.projection)
         self.continent = Continent(self.projection)
         self.grid_lines = GridLines(self.projection)
+        self.longitude_origin = -180.0
+        self._crop_lon = [-180.0, 180.0]
+        self._crop_lat = [-90.0, 90.0]
 
     def update(self, time=0.0):
         self.data_reader.update(time=time)
@@ -815,11 +854,28 @@ class EAMVisSource:
         self.grid_lines.update(time=time)
 
     def ApplyClipping(self, cliplong, cliplat):
-        if not self.data_reader.valid:
+        self._crop_lon = list(cliplong)
+        self._crop_lat = list(cliplat)
+        # The crop arrives in geographic longitude; everything downstream works
+        # in the current window, so move it there once, here.
+        window = longitude_window(cliplong, self.longitude_origin)
+        self.data_reader.crop(window, cliplat)
+        self.continent.crop(window, cliplat)
+        self.grid_lines.crop(window, cliplat)
+
+    def SetLongitudeOrigin(self, origin):
+        """Rotate the map so its left edge is at `origin` degrees longitude."""
+        if self.longitude_origin == origin:
             return
-        self.data_reader.crop(cliplong, cliplat)
-        self.continent.crop(cliplong, cliplat)
-        self.grid_lines.crop(cliplong, cliplat)
+
+        self.longitude_origin = origin
+        self.data_reader.set_longitude_origin(origin)
+        self.continent.longitude_origin = origin
+        self.grid_lines.longitude_origin = origin
+
+        # Re-express the crop in the new window and refresh the overlays.
+        self.ApplyClipping(self._crop_lon, self._crop_lat)
+        self.UpdatePipeline()
 
     def UpdateGridInterval(self, interval):
         # Changing the spacing changes how many cells the generator emits, so the

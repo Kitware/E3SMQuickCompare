@@ -277,7 +277,7 @@ class Cropping(v3.VToolbar):
                         )
                         v3.VSpacer()
                         v3.VLabel(
-                            "{{ crop_longitude }}",
+                            "[{{ crop_longitude[0] + spherical_center_lon }}, {{ crop_longitude[1] + spherical_center_lon }}]",
                             classes="text-body-2",
                         )
                     v3.VRangeSlider(
@@ -291,22 +291,21 @@ class Cropping(v3.VToolbar):
                 # --- Spherical projection center ---
                 with v3.VSheet(
                     classes="d-flex align-center rounded px-1 ga-1 py-1",
-                    color=("show_spherical_center ? 'grey-lighten-3' : 'transparent'",),
-                    v_if="projection[0] === 'Spherical'",
+                    color=("show_longitude_center ? 'grey-lighten-3' : 'transparent'",),
                 ):
                     v3.VIconBtn(
-                        v_tooltip_bottom="'Toggle Spherical center'",
+                        v_tooltip_bottom="'Toggle center location'",
                         icon="mdi-image-filter-center-focus-strong",
                         flat=True,
-                        click="show_spherical_center = !show_spherical_center",
-                        color=("show_spherical_center ? 'primary' : ''",),
-                        size=("show_spherical_center ? 'small' : 'default'",),
-                        classes=("show_spherical_center ? 'ml-1' : 'rounded'",),
+                        click="show_longitude_center = !show_longitude_center",
+                        color=("show_longitude_center ? 'primary' : ''",),
+                        size=("show_longitude_center ? 'small' : 'default'",),
+                        classes=("show_longitude_center ? 'ml-1' : 'rounded'",),
                     )
                     with (
                         v3.VExpandXTransition(),
                         html.Div(
-                            v_if=("show_spherical_center", False),
+                            v_if=("show_longitude_center", True),
                             classes="d-flex align-center ga-1",
                         ),
                     ):
@@ -338,6 +337,7 @@ class Cropping(v3.VToolbar):
                             flat=True,
                             control_variant="stacked",
                             inset=True,
+                            disabled=("projection[0] !== 'Spherical'",),
                         )
 
                 with v3.VCol():
@@ -362,9 +362,15 @@ class Cropping(v3.VToolbar):
             with v3.VRow(classes="ma-0 pl-6 pr-2 align-center ga-4", v_else=True):
                 v3.VNumberInput(
                     label="Longitude (min)",
-                    v_model=("crop_longitude_min", -180),
-                    min=[-180],
-                    max=("crop_longitude_max", 180),
+                    model_value=("crop_longitude[0] + longitude_origin + 180",),
+                    update_modelValue=(
+                        "$event != null"
+                        " && $event - longitude_origin - 180 < crop_longitude[1]"
+                        " && (crop_longitude ="
+                        " [$event - longitude_origin - 180, crop_longitude[1]])"
+                    ),
+                    min=("longitude_origin",),
+                    max=("crop_longitude[1] + longitude_origin + 180",),
                     step=[1],
                     hide_details=True,
                     density="comfortable",
@@ -374,9 +380,15 @@ class Cropping(v3.VToolbar):
                 )
                 v3.VNumberInput(
                     label="Longitude (max)",
-                    v_model=("crop_longitude_max", 180),
-                    min=("crop_longitude_min", -180),
-                    max=[180],
+                    model_value=("crop_longitude[1] + longitude_origin + 180",),
+                    update_modelValue=(
+                        "$event != null"
+                        " && $event - longitude_origin - 180 > crop_longitude[0]"
+                        " && (crop_longitude ="
+                        " [crop_longitude[0], $event - longitude_origin - 180])"
+                    ),
+                    min=("crop_longitude[0] + longitude_origin + 180",),
+                    max=("longitude_origin + 360",),
                     step=[1],
                     hide_details=True,
                     density="comfortable",
@@ -436,16 +448,8 @@ class Cropping(v3.VToolbar):
                     flat=True,
                     control_variant="stacked",
                     inset=True,
+                    disabled=("projection[0] !== 'Spherical'",),
                 )
-
-    @change("crop_longitude_min", "crop_longitude_max")
-    def _on_crop_lon(self, crop_longitude_min, crop_longitude_max, **_):
-        if crop_longitude_min is None or crop_longitude_max is None:
-            return
-
-        data_range = [float(crop_longitude_min), float(crop_longitude_max)]
-        if data_range[0] < data_range[1]:
-            self.state.crop_longitude = data_range
 
     @change("crop_latitude_min", "crop_latitude_max")
     def _on_crop_lat(self, crop_latitude_min, crop_latitude_max, **_):
@@ -455,14 +459,6 @@ class Cropping(v3.VToolbar):
         data_range = [float(crop_latitude_min), float(crop_latitude_max)]
         if data_range[0] < data_range[1]:
             self.state.crop_latitude = data_range
-
-    @change("crop_longitude")
-    def _sync_crop_lon_inputs(self, crop_longitude, **_):
-        if not crop_longitude or len(crop_longitude) < 2:
-            return
-
-        self.state.crop_longitude_min = crop_longitude[0]
-        self.state.crop_longitude_max = crop_longitude[1]
 
     @change("crop_latitude")
     def _sync_crop_lat_inputs(self, crop_latitude, **_):
