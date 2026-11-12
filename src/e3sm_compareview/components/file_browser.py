@@ -421,7 +421,7 @@ class ParaViewFileBrowser(TrameComponent):
                                     html.Span("{{ file.split('/').pop() }}")
 
                 html.Div(
-                    "No files selected yet. User the browser above.",
+                    "No files selected yet. Use the browser above.",
                     v_if=f"{self.name('data_simulation_files')}.length === 0",
                     classes="text-caption text-disabled mb-2",
                 )
