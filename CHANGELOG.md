@@ -2,6 +2,26 @@
 
 <!-- version list -->
 
+## v1.11.5 (2026-11-16)
+
+### Bug Fixes
+
+- Allow coastlines to be disabled with -1 value
+  ([`1f50815`](https://github.com/Kitware/E3SMQuickCompare/commit/1f50815facb7b5a5d0f7d0e02ce7ffaa313a1f91))
+
+- **file-browser**: Correct typo
+  ([`bf25eee`](https://github.com/Kitware/E3SMQuickCompare/commit/bf25eee3ed2d2532e0ee1c91aabf44b6f89cf97b))
+
+- **file-browser**: Enable sorting; edit wording
+  ([`b42b469`](https://github.com/Kitware/E3SMQuickCompare/commit/b42b469dac2c838239edb0ea25974c6b019900f3))
+
+- **file-browser**: Reset filter on home and parent action
+  ([`a6ec5f7`](https://github.com/Kitware/E3SMQuickCompare/commit/a6ec5f7203b99829351f346c7d87d76e6de7fd7d))
+
+- **ui**: Add clipping plane to spherical projection to hide back of globe
+  ([`90fa523`](https://github.com/Kitware/E3SMQuickCompare/commit/90fa52371132adf218c666c8e1345cb9dc65f305))
+
+
 ## v1.11.4 (2026-11-05)
 
 ### Bug Fixes
